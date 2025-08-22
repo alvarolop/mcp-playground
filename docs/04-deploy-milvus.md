@@ -88,7 +88,13 @@ oc get route milvus-dashboard -n intelligent-cd
 
 Continue to 🤖 [Deploy LLaMA Stack with MCP Integration](05-deploy-llama-stack.md) section ➡️
 
-## Additional Resources
+## Important Resources
+
+- [Full Milvus Cluster YAML](https://github.com/milvus-io/milvus/blob/master/configs/milvus.yaml)
+- [Milvus Cluster YAML example](https://github.com/zilliztech/milvus-operator/blob/main/config/samples/demo.yaml)
+- [Webui Documentation](https://milvus.io/docs/milvus-webui.md)
+
+Others:
 
 - [Milvus Documentation](https://milvus.io/docs)
 - [Milvus Operator GitHub](https://github.com/milvus-io/milvus-operator)

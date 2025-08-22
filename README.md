@@ -1,122 +1,74 @@
-# MCP Playground
+# MCP Playground 🚀
+
+Welcome to the Model Context Protocol (MCP) Playground! This repository provides a complete, production-ready solution for deploying AI agents that can safely interact with Kubernetes clusters through the [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server).
+
+## 🎯 What is MCP?
+
+The Model Context Protocol (MCP) is a standardized way for AI agents to interact with external systems and data sources. In our case, we're using it to enable AI agents to safely interact with Kubernetes clusters, making it easier to build intelligent chatbots, automation tools, and AI-powered Kubernetes management solutions.
+
+## 🏗️ Architecture Overview
+
+Our playground demonstrates a complete, production-ready MCP-based solution using:
+
+- **MCP Server**: The bridge between AI agents and Kubernetes clusters
+- **Gradio Interface**: A user-friendly chatbot frontend for human-AI interaction
+- **OpenShift**: Enterprise Kubernetes platform for production deployments
+- **Milvus**: Vector database for RAG (Retrieval-Augmented Generation) capabilities
+- **LLaMA Stack**: Large Language Model deployment and management for intelligent responses
+
+## 📚 Getting Started
+
+This playground is organized into progressive sections that build upon each other, taking you from local development to a fully integrated AI-powered Kubernetes management system:
+
+### 1. 🚀 [Local Development with Cursor](docs/01-local-development.md)
+Start here to set up MCP locally with Cursor and test the integration with a local minikube cluster.
+
+### 2. ☸️ [Deploy MCP Server on Kubernetes](docs/02-deploy-mcp-openshift.md)
+Learn how to deploy the MCP server on Kubernetes/OpenShift for production use with proper RBAC and security.
+
+### 3. 🌐 [Deploy Gradio Interface on OpenShift](docs/03-deploy-gradio-openshift.md)
+Deploy your Gradio chatbot interface to OpenShift to make it accessible to your team.
+
+### 4. 🗄️ [Deploy Milvus Vector Database](docs/04-deploy-milvus.md)
+Set up Milvus for storing and retrieving vector embeddings to enable RAG capabilities.
+
+### 5. 🤖 [Deploy LLaMA Stack with MCP Integration](docs/05-deploy-llama-stack.md)
+Integrate everything together using the LLaMA Stack Operator to deploy and manage LLMs.
+
+## 🛠️ Prerequisites
+
+- [minikube](https://minikube.sigs.k8s.io/docs/start/) for local development
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) for cluster management
+- [OpenShift CLI (oc)](https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/getting-started-cli.html) for OpenShift operations
+- [Helm](https://helm.sh/docs/intro/install/) for package management
+- [Cursor Editor](https://www.cursor.com/) for MCP integration testing
+- [Node.js](https://nodejs.org/) for MCP server installation
+- [Podman](https://podman.io/) for container operations
 
 
-In this repository, I will be exploring the Model Context Protocol (MCP) for Kubernetes [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) and how it can be used to build a chatbot.
+## 📖 Additional Resources
 
-## Concepts that I didn't know how to use
+### Core Technologies
+- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
+- [Kubernetes MCP Server](https://github.com/containers/kubernetes-mcp-server)
+- [OpenShift Documentation](https://docs.openshift.com/)
 
-### MCP
+### Components
+- [Gradio Documentation](https://gradio.app/docs/) - Chatbot interface
+- [Milvus Documentation](https://milvus.io/docs) - Vector database
+- [LLaMA Stack Documentation](https://docs.llamaindex.ai/) - LLM management
 
-MCP is a protocol for building AI agents that can interact with Kubernetes. It is a way to standardize the way that AI agents interact with Kubernetes, making it easier to build and deploy AI agents that can interact with Kubernetes.
+### Community & Support
+- [MCP GitHub Discussions](https://github.com/modelcontextprotocol/spec/discussions)
+- [OpenShift Community](https://www.redhat.com/en/technologies/cloud-computing/openshift/community)
 
-### MCP Server
+## 🤝 Contributing
 
-The MCP server is a tool that allows you to interact with Kubernetes using the MCP protocol. It is a way to standardize the way that AI agents interact with Kubernetes, making it easier to build and deploy AI agents that can interact with Kubernetes.
+Feel free to contribute improvements, bug fixes, or additional examples to this playground!
 
+## 📄 License
 
-## Architecture
-
-I want to use the MCP server to build a chatbot that can interact with Kubernetes. For that purpose, we will use the following tools: 
-
-- [minikube](https://minikube.sigs.k8s.io/docs/start/) to run a local Kubernetes cluster.
-- [kubectl-mcp-server](https://github.com/containers/kubernetes-mcp-server) to run the MCP server.
-- [Gradio](https://gradio.app/) to build the chatbot interface.
-- [Cursor editor](https://www.cursor.com/) to test the capabilities of the MCP server.
-
-
-
-## Set Up the minimal demo
-
-1. Install minikube
-
-```bash
-curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
-```
-
-2. Start minikube
-
-```bash
-minikube start
-```
-
-Manage the cluster with the following commands:
-
-```bash
-# Check the status of your cluster
-minikube status
-
-# Pause Kubernetes without impacting deployed applications
-minikube pause
-
-# Unpause a paused instance
-minikube unpause
-
-# Halt the cluster
-minikube stop
-
-# Delete the cluster
-minikube delete
-
-# Memory used
-minikube ssh "free -hm"
-
-# Get the IP address of the cluster
-minikube ip
-```
-
-
-3. Interact with the Kubernetes cluster
-
-```bash
-kubectl get pods -A
-```
-
-
-4. Enable Ingress on minikube
-
-```bash
-minikube addons enable ingress
-```
-
-> **Note:**  
-> You can test the ingress functionality in your minikube cluster by following the procedure described in the [official Kubernetes documentation](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#deploy-a-hello-world-app), which walks you through deploying a hello-world app and verifying ingress is working as expected.
-
-
-
-5. Install kubectl-mcp-server accessing this [link](https://github.com/containers/kubernetes-mcp-server?tab=readme-ov-file#cursor) and selecting your preferred editor.
-
->
-> **Recommendation:**  
-> The default configuration in the official documentation does not include the `--disable-destructive` flag. To ensure your cluster remains safe while you practice, I recommend installing and configuring the MCP server by editing your Cursor configuration file (usually located at `~/.cursor/mcp.json`) as follows:
->
-> ```json
-> {
->   "mcpServers": {
->     "kubernetes-mcp-server": {
->       "command": "npx",
->       "args": ["-y", "kubernetes-mcp-server@latest", "--disable-destructive"]
->     }
->   }
-> }
-> ```
-> 
-> This setup will start the MCP server with the `--disable-destructive` flag enabled by default. This ensures that the chatbot and MCP server will not perform any destructive operations on your Kubernetes cluster.
-
-
-This is an example of how to list all pods using Cursor and MCP server:
-
-![List all pods using Cursor and MCP server](docs/images/../../cursor-list-all-pods.png "List all pods using Cursor and MCP server")
-
-
-
-
-## Build the chatbot
-
-With the previous steps, we have a Kubernetes cluster running in our local machine. Now, let's add a simple chatbot frontend that will be used to interact with the Kubernetes cluster.
-
-
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 
 

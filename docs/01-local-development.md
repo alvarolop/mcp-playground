@@ -78,6 +78,21 @@ minikube addons enable ingress
 > **Note:**  
 > You can test the ingress functionality in your minikube cluster by following the procedure described in the [official Kubernetes documentation](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#deploy-a-hello-world-app), which walks you through deploying a hello-world app and verifying ingress is working as expected.
 
+
+<!-- ### 5. Enable OLM on minikube
+
+Install Operator Lifecycle Manager (OLM) v0 to manage the lifecycle of operators in your local cluster following the instructions [here](https://github.com/operator-framework/operator-lifecycle-manager/releases/tag/v0.33.0).
+
+```bash
+curl -L https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.33.0/install.sh -o install.sh
+chmod +x install.sh
+./install.sh v0.33.0
+rm install.sh
+``` -->
+
+
+
+
 ### 5. Install kubectl-mcp-server
 
 Install the Kubernetes MCP server to enable AI tools to interact with your cluster. Access this [link](https://github.com/containers/kubernetes-mcp-server?tab=readme-ov-file#cursor) and select your preferred editor.

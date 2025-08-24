@@ -5,7 +5,7 @@
 namespace: "intelligent-cd"
 
 # Fullname override for the MCP server deployment
-fullnameOverride: "ocp-mcp"
+fullnameOverride: "ocp-mcp-server"
 
 # Number of replicas for the MCP server deployment
 replicaCount: 1
@@ -28,7 +28,7 @@ mcpServer:
   logLevel: 5
   
   # Service account name (defaults to "ocp-mcp" if not specified)
-  serviceAccountName: "ocp-mcp"
+  serviceAccountName: "ocp-mcp-server"
 
 # RBAC configuration
 rbac:

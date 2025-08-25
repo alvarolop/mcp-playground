@@ -2,76 +2,129 @@ import gradio as gr
 import json
 import os
 import sys
+import time
 from typing import List, Dict, Any
-from llama_stack_client import LlamaStackClient
+from llama_stack_client import LlamaStackClient, Agent
 
 # Llama Stack Configuration
 LLAMA_STACK_URL = os.getenv("LLAMA_STACK_URL", "http://localhost:8321")
 DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "granite-3-3-8b-instruct")
+
+# More specific model prompt that emphasizes using tools correctly
+model_prompt = """You are a Kubernetes/OpenShift cluster assistant that extracts YAML configurations.
+
+PRIMARY TASK: Get complete YAML configurations of deployed resources (70% of requests).
+
+AVAILABLE TOOLS: {tool_groups}
+
+WORKFLOW:
+1. Use MCP tools to get real-time cluster data
+2. For configuration requests: extract full YAML with all fields
+3. Present clean, complete YAML that can be applied elsewhere
+
+EXAMPLES:
+- "Get deployment X YAML" → Extract full deployment configuration
+- "Show service Y config" → Get complete service YAML
+- "Export app Z" → Get all related resource YAMLs
+
+Always query the cluster directly - never generate fake configurations."""
+
+# Example queries to test different capabilities
+example_queries = [
+    "List all pods in the intelligent-cd namespace",
+    "Show me the current cluster events",
+    "What namespaces exist in the cluster?",
+    "List all pods across all namespaces",
+    "Show me the top resource consumers in the cluster"
+]
 
 class ChatTab:
     """Handles chat functionality with Llama Stack LLM"""
     
     def __init__(self, client: LlamaStackClient):
         self.client = client
+        # Initialize available tools once during initialization
+        self.available_tools = self._get_available_tools()
+        # Pre-convert tools to array format for Agent API efficiency
+        self.tools_array = self._convert_tools_to_array()
+        # Create a persistent agent and session for the entire chat
+        self.agent = self._create_persistent_agent()
+        self.session_id = self._create_persistent_session()
+    
+    def _get_available_tools(self) -> str:
+        """Get available tools once during initialization"""
+        try:
+            tools = self.client.tools.list()
+            tool_groups = list(set(tool.toolgroup_id for tool in tools))
+            return ", ".join(tool_groups) if tool_groups else "No tools available"
+        except Exception:
+            return "Tools temporarily unavailable"
+    
+    def _convert_tools_to_array(self) -> list:
+        """Convert tools string to array format once during initialization"""
+        if self.available_tools == "No tools available" or self.available_tools == "Tools temporarily unavailable":
+            return []
+        
+        return [f"{tool.strip()}" for tool in self.available_tools.split(",") if tool.strip()]
+    
+    def _create_persistent_agent(self) -> Agent:
+        """Create a persistent agent that will be reused for the entire chat"""
+        formatted_prompt = model_prompt.format(tool_groups=self.available_tools)
+        
+        return Agent(
+            self.client,
+            model=DEFAULT_LLM_MODEL,
+            instructions=formatted_prompt,
+            tools=self.tools_array,
+            tool_config={"tool_choice": "auto"},
+            sampling_params={"temperature": 0.7, "max_tokens": 1000}
+        )
+    
+    def _create_persistent_session(self) -> str:
+        """Create a persistent session that will be reused for the entire chat"""
+        session = self.agent.create_session(session_name="OCP_Chat_Session")
+        # Handle both object with .id attribute and direct string return
+        if hasattr(session, 'id'):
+            return session.id
+        else:
+            return str(session)
     
     def chat_completion(self, message: str, chat_history: List[Dict[str, str]]) -> tuple:
-        """Handle chat with LLM"""
-        if not message.strip():
-            return chat_history, ""
-        
+        """Handle chat with LLM using Agent → Session → Turn structure"""
         # Add user message to history
         chat_history.append({"role": "user", "content": message})
         
-        # For now, just use the original message without MCP enhancement
-        enhanced_prompt = message
+        # Get LLM response using Agent API
+        result = self._execute_agent_turn(message)
         
-        # Get LLM response with enhanced prompt
-        result = self.chat_completion_simple(enhanced_prompt)
+        # Add assistant response to history
+        chat_history.append({"role": "assistant", "content": result})
         
-        if result["success"]:
-            response = result["response"]
-            chat_history.append({"role": "assistant", "content": response})
-            return chat_history, ""
-        else:
-            error_msg = f"❌ Error: {result['error']}"
-            chat_history.append({"role": "assistant", "content": error_msg})
-            return chat_history, ""
+        return chat_history, ""
     
-    def chat_completion_simple(self, message: str) -> Dict[str, Any]:
-        """Send a chat completion request to the Llama Stack LLM"""
-        if not self.client:
-            return {
-                "success": False,
-                "error": "Llama Stack LLM client not initialized"
-            }
+    def _execute_agent_turn(self, message: str) -> str:
+        """Execute a single turn using the persistent agent and session"""
+        # Create turn with user message using the persistent agent and session
+        response = self.agent.create_turn(
+            messages=[
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ],
+            session_id=self.session_id,
+            stream=False,  # No streaming for chat interface
+        )
         
-        try:
-            # Prepare the prompt
-            full_prompt = message
-            
-            # Use Llama Stack for chat completion
-            response = self.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "You are an intelligent assistant that helps with Kubernetes deployments, GitOps, and OpenShift configurations. Provide helpful, accurate, and practical advice."},
-                    {"role": "user", "content": full_prompt}
-                ],
-                model=DEFAULT_LLM_MODEL,
-                temperature=0.7,
-                max_tokens=1000
-            )
-            
-            return {
-                "success": True,
-                "response": response.choices[0].message.content,
-                "model": "Llama Stack LLM"
-            }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Llama Stack LLM error: {str(e)}"
-            }
+        # Extract response content from the turn
+        # The response is a Turn object, extract the output message content
+        if hasattr(response, 'output_message') and hasattr(response.output_message, 'content'):
+            return response.output_message.content
+        else:
+            # Fallback to string representation
+            return str(response)
+    
+
 
 
 class MCPTestTab:
@@ -225,51 +278,55 @@ class SystemStatusTab:
         llm_status = []
         llm_status.append("🤖 LLM Service (Inference):")
         
-        try:
-            # Test LLM connectivity with the correct model name
-            test_response = self.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "Hello, this is a test message."}
-                ],
-                model=DEFAULT_LLM_MODEL,
-                temperature=0.7,
-                max_tokens=100
-            )
-            llm_status.append("   • Status: ✅ LLM service responding")
-            llm_status.append(f"   • Model: {DEFAULT_LLM_MODEL}")
-            llm_status.append(f"   • Response: ✅ Received {len(test_response.choices[0].message.content)} characters")
-            
-        except Exception as e:
-            llm_status.append("   • Status: ❌ Failed to connect to LLM service")
-            llm_status.append(f"   • Error: {str(e)}")
+        # Test LLM connectivity with the correct model name using Agent API
+        agent = Agent(
+            self.client,
+            model=DEFAULT_LLM_MODEL,
+            instructions="You are a helpful assistant.",
+            tools=[],  # No tools needed for basic test
+            tool_config={"tool_choice": "none"},
+            sampling_params={"temperature": 0.7, "max_tokens": 100}
+        )
+        
+        # Create a test session and turn
+        session = agent.create_session(session_name="Test_Session")
+        test_response = agent.create_turn(
+            messages=[
+                {"role": "user", "content": "Hello, this is a test message."}
+            ],
+            session_id=session.id,
+            stream=False,
+        )
+        
+        llm_status.append("   • Status: ✅ LLM service responding")
+        llm_status.append(f"   • Model: {DEFAULT_LLM_MODEL}")
+        
+        # Extract response content for length calculation
+        if hasattr(test_response, 'messages') and test_response.messages:
+            last_message = test_response.messages[-1]
+            response_content = getattr(last_message, 'content', str(last_message))
+        else:
+            response_content = str(test_response)
+        
+        llm_status.append(f"   • Response: ✅ Received {len(response_content)} characters")
         
         # 4. MCP Server
         mcp_status = []
         mcp_status.append("☸️ MCP Server:")
         
-        try:
-            # List tools to check MCP server connectivity
-            tools = self.client.tools.list()
-            
-            if tools:
-                # Extract unique toolgroup IDs
-                toolgroups = list(set(tool.toolgroup_id for tool in tools))
-                mcp_status.append("   • Status: ✅ MCP server responding")
-                mcp_status.append(f"   • Toolgroups: ✅ Found {len(toolgroups)} toolgroup(s)")
-                
-                # List all toolgroup identifiers as a simple list
-                if toolgroups:
-                    mcp_status.append("   • Toolgroup IDs:")
-                    for toolgroup_id in toolgroups:
-                        mcp_status.append(f"      - {toolgroup_id}")
-            else:
-                mcp_status.append("   • Status: ⚠️ MCP server responding but no toolgroups found")
-                mcp_status.append("   • Toolgroups: 0")
-                
-        except Exception as e:
-            mcp_status.append("   • Status: ❌ Failed to connect to MCP server")
-            mcp_status.append(f"   • Error: {str(e)}")
+        # List tools to check MCP server connectivity
+        tools = self.client.tools.list()
+        
+        # Extract unique toolgroup IDs
+        toolgroups = list(set(tool.toolgroup_id for tool in tools))
+        mcp_status.append("   • Status: ✅ MCP server responding")
+        mcp_status.append(f"   • Toolgroups: ✅ Found {len(toolgroups)} toolgroup(s)")
+        
+        # List all toolgroup identifiers as a simple list
+        if toolgroups:
+            mcp_status.append("   • Toolgroup IDs:")
+            for toolgroup_id in toolgroups:
+                mcp_status.append(f"      - {toolgroup_id}")
         
         # Combine all status information
         full_status = "\n".join([
@@ -293,24 +350,17 @@ class SystemStatusTab:
 
 def initialize_llama_stack_client() -> tuple[LlamaStackClient, ChatTab, MCPTestTab, SystemStatusTab]:
     """Initialize Llama Stack client and all tab classes"""
-    try:
-        print(f"🔧 Initializing Llama Stack client with URL: {LLAMA_STACK_URL}")
-        llama_stack_client = LlamaStackClient(base_url=LLAMA_STACK_URL)
-        print(f"✅ Llama Stack client initialized successfully with URL: {LLAMA_STACK_URL}")
-        
-        # Initialize tab classes with shared client
-        chat_tab = ChatTab(llama_stack_client)
-        mcp_test_tab = MCPTestTab(llama_stack_client)
-        system_status_tab = SystemStatusTab(llama_stack_client, LLAMA_STACK_URL)
-        
-        print("✅ All tab classes initialized successfully")
-        return llama_stack_client, chat_tab, mcp_test_tab, system_status_tab
-        
-    except Exception as e:
-        print(f"❌ Failed to initialize Llama Stack client: {e}")
-        print("❌ Llama Stack client is not available. Application cannot start.")
-        print("💡 Please ensure the Llama Stack server is running and accessible.")
-        sys.exit(1)
+    print(f"🔧 Initializing Llama Stack client with URL: {LLAMA_STACK_URL}")
+    llama_stack_client = LlamaStackClient(base_url=LLAMA_STACK_URL)
+    print(f"✅ Llama Stack client initialized successfully with URL: {LLAMA_STACK_URL}")
+    
+    # Initialize tab classes with shared client
+    chat_tab = ChatTab(llama_stack_client)
+    mcp_test_tab = MCPTestTab(llama_stack_client)
+    system_status_tab = SystemStatusTab(llama_stack_client, LLAMA_STACK_URL)
+    
+    print("✅ All tab classes initialized successfully")
+    return llama_stack_client, chat_tab, mcp_test_tab, system_status_tab
 
 
 def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: SystemStatusTab):

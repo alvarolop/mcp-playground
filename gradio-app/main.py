@@ -150,7 +150,7 @@ class MCPTestTab:
         """Get methods for a specific toolgroup through Llama Stack"""
         if not toolgroup_name:
             return (
-                '<div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #c62828;">❌ Please select a toolgroup first</span></div>',
+                "❌ Please select a toolgroup first",
                 gr.update(choices=[], value=None)
             )
         
@@ -177,9 +177,9 @@ class MCPTestTab:
         print(f"🔍 [MCP DEBUG] Found {len(methods)} methods: {methods}")
         
         # Update status to success
-        status_html = f'<div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #2e7d32;">✅ Found {len(methods)} methods in toolgroup "{toolgroup_name}"</span></div>'
+        status_text = f"✅ Found {len(methods)} methods in toolgroup '{toolgroup_name}'"
         
-        return status_html, gr.update(choices=methods, value=None)
+        return status_text, gr.update(choices=methods, value=None)
     
     def execute_tool(self, toolgroup_name: str, method_name: str, params_json: str) -> str:
         """Execute an MCP tool through Llama Stack using toolgroup and method"""
@@ -334,7 +334,7 @@ class SystemStatusTab:
         # Combine all status information
         full_status = "\n".join([
             "=" * 60,
-            "SYSTEM STATUS REPORT",
+            "🔍 SYSTEM STATUS REPORT",
             "=" * 60,
             "",
             gradio_status,
@@ -372,7 +372,7 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
     with gr.Blocks(
         title="Intelligent CD Chatbot",
         # https://www.gradio.app/guides/theming-guide
-        theme=gr.themes.Default(),  # Fixed light theme - no dark mode switching
+        theme=gr.themes.Soft(),  # Fixed light theme - no dark mode switching
         css="""
         /* Full screen responsive layout */
         .gradio-container {
@@ -457,30 +457,37 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
             flex-shrink: 0 !important;
         }
         
-        /* Dynamic heights for responsive layout */
-        .chatbot-container {
-            height: calc(100vh - 300px) !important;
-            min-height: 400px !important;
-            max-height: 800px !important;
-        }
-        
-        /* Code canvas - dynamic height */
-        .code-canvas {
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-            height: calc(100vh - 300px) !important;
-            min-height: 400px !important;
-            max-height: 800px !important;
-            overflow-y: auto;
-            width: 100% !important;
-        }
+
         
         /* Ensure both panels have equal heights */
         .equal-height-panels {
             display: flex !important;
             align-items: stretch !important;
+        }
+        
+        /* Status indicator styling */
+        .status-ready {
+            background-color: #e8f5e8 !important;
+            border-color: #4caf50 !important;
+            color: #2e7d32 !important;
+        }
+        
+        .status-loading {
+            background-color: #fff3e0 !important;
+            border-color: #ff9800 !important;
+            color: #e65100 !important;
+        }
+        
+        .status-error {
+            background-color: #ffebee !important;
+            border-color: #f44336 !important;
+            color: #c62828 !important;
+        }
+        
+        .status-success {
+            background-color: #e8f5e8 !important;
+            border-color: #4caf50 !important;
+            color: #2e7d32 !important;
         }
         
         /* Responsive adjustments */
@@ -516,7 +523,7 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                             </div>
                         </div>
                         <div class="header-right">
-                            <div style="font-size: 0.9em; opacity: 0.8;">
+                            <div style="font-size: 1.2em; opacity: 0.8;">
                                 Powered by <strong>Red Hat AI</strong>
                             </div>
                         </div>
@@ -526,39 +533,43 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
         
         # Top Right Controls - Removed for cleaner interface
         
-        # Main Content Area - Two Columns with equal heights
-        with gr.Row(elem_classes=["equal-height-panels"]):
+        # Main Content Area - Two Columns
+        with gr.Row():
             # Left Column - Chatbot (40%)
-            with gr.Column(scale=2, elem_classes=["chatbot-container"]):
+            with gr.Column(scale=2):
                 # Tab system for different interfaces
                 with gr.Tabs():
                     # Chat Tab
                     with gr.TabItem("💬 Chat"):
-                        # Chat Interface - Dynamic height for responsiveness
-                        chatbot = gr.Chatbot(
-                            label="💬 Chat with AI Assistant",
-                            show_label=True,
-                            type="messages"
-                        )
-                        
-                        # Chat Input with built-in submit button
-                        msg = gr.Textbox(
-                            label="Message",
-                            show_label=False,
-                            placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
-                            lines=1,
-                            submit_btn=True  # Built-in submit button with icon
-                        )
-                        
-                        # Clear button - positioned to align with code block bottom
-                        clear_btn = gr.Button("Clear Chat", variant="secondary")
+                        # Vertical layout: Chat history (7) and input (3)
+                        with gr.Column():
+                            # Chat Interface - Takes most of the space (scale 7)
+                            with gr.Column(scale=7):
+                                chatbot = gr.Chatbot(
+                                    label="💬 Chat with AI Assistant",
+                                    show_label=True,
+                                    type="messages"
+                                )
+                            
+                            # Chat Input - Takes less space (scale 3)
+                            with gr.Column(scale=3):
+                                msg = gr.Textbox(
+                                    label="Message",
+                                    show_label=False,
+                                    placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
+                                    lines=1,
+                                    submit_btn=True  # Built-in submit button with icon
+                                )
                     
                     # MCP Test Tab
                     with gr.TabItem("🧪 MCP Test"):
-                        # Status Bar
-                        status_indicator = gr.HTML(
-                            '<div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #666;">Ready to test MCP server</span></div>',
-                            label="Status"
+                        # Status Bar - Simple textbox with status styling
+                        status_indicator = gr.Textbox(
+                            label="Status",
+                            value="✅ Ready to test MCP server",
+                            interactive=False,
+                            show_label=False,
+                            elem_classes=["status-ready"]
                         )
                         
                         # Toolgroup Selector with Refresh Button
@@ -605,9 +616,14 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
             # Right Column - Code Canvas (60%)
             with gr.Column(scale=3):
                 # Dynamic content area for System Status, MCP Test results, and other content
-                content_area = gr.HTML(
-                    '<div class="code-canvas"><h3>📝 Code Canvas</h3><p>Click a button above to see results here, or chat with the AI to generate deployment manifests...</p></div>',
-                    label="Content Area"
+                content_area = gr.Textbox(
+                    label="📝 Code Canvas",
+                    placeholder="Click a button above to see results here, or chat with the AI to generate deployment manifests...",
+                    lines=20,
+                    max_lines=50,
+                    interactive=False,
+                    show_copy_button=True,
+                    show_label=True
                 )
         
 
@@ -627,14 +643,14 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
         )
         
         execute_btn.click(
-            fn=lambda toolgroup, method, params: f'<div class="code-canvas"><h3>🧪 MCP Method Execution: {method}</h3><pre>{mcp_test_tab.execute_tool(toolgroup, method, params)}</pre></div>',
+            fn=lambda toolgroup, method, params: f"🧪 MCP Method Execution: {method}\n\n{mcp_test_tab.execute_tool(toolgroup, method, params)}",
             inputs=[toolgroup_selector, method_selector, params_input],
             outputs=content_area
         )
         
         # System Status Tab functionality
         check_status_btn.click(
-            fn=lambda: f'<div class="code-canvas"><h3>🔍 System Status</h3><pre>{system_status_tab.get_system_status()}</pre></div>',
+            fn=lambda: f"{system_status_tab.get_system_status()}",
             outputs=content_area
         )
         
@@ -642,11 +658,6 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
         msg.submit(
             fn=chat_tab.chat_completion,
             inputs=[msg, chatbot],
-            outputs=[chatbot, msg]
-        )
-        
-        clear_btn.click(
-            fn=lambda: ([], ""),
             outputs=[chatbot, msg]
         )
         

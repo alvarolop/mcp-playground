@@ -1,0 +1,22 @@
+{{- if eq .Values.exposure.type "route" }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "gradio-chart.fullname" . }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "gradio-chart.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.exposure.host }}
+  host: {{ .Values.exposure.host | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "gradio-chart.fullname" . }}
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: "edge"
+    insecureEdgeTerminationPolicy: "Redirect"
+{{- end }}

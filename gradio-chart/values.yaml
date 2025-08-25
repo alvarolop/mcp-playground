@@ -1,0 +1,43 @@
+# Default values for gradio-chart.
+# This is a simplified Helm chart for deploying Gradio applications.
+
+# Namespace Configuration
+global:
+  namespace: "intelligent-cd"
+
+# Gradio Application Configuration
+gradio:
+  # Gradio app file path (relative to the container)
+  appFile: "app.py"
+  # Gradio app function name
+  appFunction: "demo"
+  # Gradio title
+  title: "Gradio Application"
+  # Gradio description
+  description: "A simple Gradio application"
+
+# Application Configuration
+replicaCount: 1
+
+image:
+  repository: "quay.io/alopezme/intelligent-cd-gradio"
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: "gradio"
+
+# Exposure Configuration
+exposure:
+  # Type of exposure: none, ingress, or route
+  type: "route"
+  # Hostname for ingress or route (optional)
+  host: ""
+
+# Resources
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"

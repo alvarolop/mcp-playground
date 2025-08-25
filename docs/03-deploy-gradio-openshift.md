@@ -96,7 +96,7 @@ helm template gradio-chart | oc apply -f -
 Great! Now you can access the Gradio application at:
 
 ```bash
-oc get route gradio -n gradio --template='https://{{ .spec.host }}'
+oc get route gradio -n intelligent-cd --template='https://{{ .spec.host }}'
 ```
 
 Here is a sneak peak of the Gradio application:

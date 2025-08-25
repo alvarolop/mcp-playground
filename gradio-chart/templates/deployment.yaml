@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gradio-chart.fullname" . }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "gradio-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gradio-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gradio-chart.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 7860
+              protocol: TCP
+          env:
+            # Gradio Configuration
+            - name: GRADIO_SERVER_NAME
+              value: "0.0.0.0"
+            - name: GRADIO_SERVER_PORT
+              value: "7860"
+            - name: GRADIO_TITLE
+              value: {{ .Values.gradio.title | quote }}
+            - name: GRADIO_DESCRIPTION
+              value: {{ .Values.gradio.description | quote }}
+          
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 7860
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 7860
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # command:
+          #   - "python"
+          #   - "-m"
+          #   - "gradio"
+          #   - "{{ .Values.gradio.appFile }}"
+          #   - "{{ .Values.gradio.appFunction }}"
+          #   - "--server-name"
+          #   - "0.0.0.0"
+          #   - "--server-port"
+          #   - "7860"
+          #   - "--title"
+          #   - "{{ .Values.gradio.title }}"
+          #   - "--description"
+          #   - "{{ .Values.gradio.description }}"

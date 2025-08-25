@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gradio-chart.fullname" . }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "gradio-chart.labels" . | nindent 4 }}
+spec:
+  type: "ClusterIP"
+  ports:
+    - port: 7860
+      targetPort: 7860
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "gradio-chart.selectorLabels" . | nindent 4 }}

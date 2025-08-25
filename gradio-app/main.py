@@ -290,11 +290,14 @@ class SystemStatusTab:
         
         # Create a test session and turn
         session = agent.create_session(session_name="Test_Session")
+        # Handle both object with .id attribute and direct string return
+        session_id = session.id if hasattr(session, 'id') else str(session)
+        
         test_response = agent.create_turn(
             messages=[
                 {"role": "user", "content": "Hello, this is a test message."}
             ],
-            session_id=session.id,
+            session_id=session_id,
             stream=False,
         )
         
@@ -493,6 +496,7 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                         with gr.Row():
                             msg = gr.Textbox(
                                 label="Message",
+                                show_label=False,
                                 placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
                                 lines=1,
                                 scale=4
@@ -559,6 +563,8 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                     label="Content Area"
                 )
         
+
+        
         # Event handlers     
         # Refresh Toolgroups Button (next to dropdown)
         refresh_toolgroups_btn.click(
@@ -603,6 +609,8 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
             fn=lambda: ([], ""),
             outputs=[chatbot, msg]
         )
+        
+
     
     return demo
 

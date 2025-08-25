@@ -1,548 +1,319 @@
 import gradio as gr
-import requests
 import json
 import os
+import sys
 from typing import List, Dict, Any
-import subprocess
-import tempfile
+from llama_stack_client import LlamaStackClient
 
-# Configuration
-KUBERNETES_MCP_URL = os.getenv("KUBERNETES_MCP_URL", "http://localhost:8080/mcp")
-RAG_ENDPOINT = os.getenv("RAG_ENDPOINT", "http://localhost:8000")
+# Llama Stack Configuration
+LLAMA_STACK_URL = os.getenv("LLAMA_STACK_URL", "http://localhost:8321")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "granite-3-3-8b-instruct")
 
-# LLM Configuration from environment variables
-OLS_PROVIDER_TYPE = os.getenv("OLS_PROVIDER_TYPE", "rhoai_vllm")
-OLS_PROVIDER_MODEL_NAME = os.getenv("OLS_PROVIDER_MODEL_NAME", "granite-3-3-8b-instruct")
-OLS_PROVIDER_API_URL = os.getenv("OLS_PROVIDER_API_URL", "https://granite-3-3-8b-instruct-maas-apicast-production.apps.prod.rhoai.rh-aiservices-bu.com:443/v1")
-OLS_PROVIDER_API_TOKEN = os.getenv("OLS_PROVIDER_API_TOKEN", "e0b0143c4738a56aed654cb7db8ce682")
-
-class KubernetesMCPClient:
-    """Simple client for Kubernetes MCP operations"""
+class ChatTab:
+    """Handles chat functionality with Llama Stack LLM"""
     
-    def __init__(self, base_url: str):
-        self.base_url = base_url
+    def __init__(self, client: LlamaStackClient):
+        self.client = client
     
-    def get_pods(self, namespace: str = "default") -> Dict[str, Any]:
-        """Get pods from a namespace"""
+    def chat_completion(self, message: str, chat_history: List[Dict[str, str]]) -> tuple:
+        """Handle chat with LLM"""
+        if not message.strip():
+            return chat_history, ""
+        
+        # Add user message to history
+        chat_history.append({"role": "user", "content": message})
+        
+        # For now, just use the original message without MCP enhancement
+        enhanced_prompt = message
+        
+        # Get LLM response with enhanced prompt
+        result = self.chat_completion_simple(enhanced_prompt)
+        
+        if result["success"]:
+            response = result["response"]
+            chat_history.append({"role": "assistant", "content": response})
+            return chat_history, ""
+        else:
+            error_msg = f"❌ Error: {result['error']}"
+            chat_history.append({"role": "assistant", "content": error_msg})
+            return chat_history, ""
+    
+    def chat_completion_simple(self, message: str) -> Dict[str, Any]:
+        """Send a chat completion request to the Llama Stack LLM"""
+        if not self.client:
+            return {
+                "success": False,
+                "error": "Llama Stack LLM client not initialized"
+            }
+        
         try:
-            result = subprocess.run(
-                ["kubectl", "get", "pods", "-n", namespace, "-o", "json"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                return {"success": True, "data": result.stdout}
-            else:
-                return {"success": False, "error": result.stderr}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    def get_namespaces(self) -> Dict[str, Any]:
-        """Get all namespaces"""
-        try:
-            result = subprocess.run(
-                ["kubectl", "get", "namespaces", "-o", "json"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                return {"success": True, "data": result.stdout}
-            else:
-                return {"success": False, "error": result.stderr}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-class LLMClient:
-    """Client for interacting with the LLM API"""
-    
-    def __init__(self, api_url: str, api_token: str, model_name: str):
-        self.api_url = api_url
-        self.api_token = api_token
-        self.model_name = model_name
-        self.headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json"
-        }
-    
-    def chat_completion(self, message: str, context: str = "") -> Dict[str, Any]:
-        """Send a chat completion request to the LLM"""
-        try:
-            # Prepare the prompt with context if provided
-            if context:
-                full_prompt = f"Context: {context}\n\nUser Question: {message}\n\nPlease provide a helpful response based on the context and your knowledge."
-            else:
-                full_prompt = message
+            # Prepare the prompt
+            full_prompt = message
             
-            payload = {
-                "model": self.model_name,
-                "messages": [
+            # Use Llama Stack for chat completion
+            response = self.client.chat.completions.create(
+                messages=[
                     {"role": "system", "content": "You are an intelligent assistant that helps with Kubernetes deployments, GitOps, and OpenShift configurations. Provide helpful, accurate, and practical advice."},
                     {"role": "user", "content": full_prompt}
                 ],
-                "max_tokens": 1000,
-                "temperature": 0.7
-            }
-            
-            response = requests.post(
-                f"{self.api_url}/chat/completions",
-                headers=self.headers,
-                json=payload,
-                timeout=30
+                model=DEFAULT_LLM_MODEL,
+                temperature=0.7,
+                max_tokens=1000
             )
             
-            if response.status_code == 200:
-                result = response.json()
-                return {
-                    "success": True,
-                    "response": result.get("choices", [{}])[0].get("message", {}).get("content", "No response generated"),
-                    "model": self.model_name
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"API request failed with status {response.status_code}: {response.text}"
-                }
-                
-        except requests.exceptions.RequestException as e:
             return {
-                "success": False,
-                "error": f"Request error: {str(e)}"
+                "success": True,
+                "response": response.choices[0].message.content,
+                "model": "Llama Stack LLM"
             }
+                
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Unexpected error: {str(e)}"
+                "error": f"Llama Stack LLM error: {str(e)}"
             }
 
-# Initialize clients
-k8s_client = KubernetesMCPClient(KUBERNETES_MCP_URL)
-llm_client = LLMClient(OLS_PROVIDER_API_URL, OLS_PROVIDER_API_TOKEN, OLS_PROVIDER_MODEL_NAME)
 
-def kubernetes_operations(namespace: str, operation: str) -> str:
-    """Handle Kubernetes operations"""
-    if operation == "get_pods":
-        result = k8s_client.get_pods(namespace)
-    elif operation == "get_namespaces":
-        result = k8s_client.get_namespaces()
-    else:
-        return f"Unknown operation: {operation}"
+class MCPTestTab:
+    """Handles MCP testing functionality with Llama Stack"""
     
-    if result["success"]:
-        return f"✅ Success:\n{result['data']}"
-    else:
-        return f"❌ Error:\n{result['error']}"
-
-def system_status() -> str:
-    """Get comprehensive system status with better structure"""
+    def __init__(self, client: LlamaStackClient):
+        self.client = client
     
-    # 1. Gradio Health
-    gradio_status = "✅ Gradio Application: Running and accessible"
-    
-    # 2. LLM Health and Connection Details
-    llm_status = []
-    llm_status.append("🤖 LLM Service:")
-    
-    if OLS_PROVIDER_API_URL:
-        llm_status.append(f"   • API URL: {OLS_PROVIDER_API_URL}")
-        llm_status.append(f"   • Provider Type: {OLS_PROVIDER_TYPE}")
-        llm_status.append(f"   • Model: {OLS_PROVIDER_MODEL_NAME}")
+    def list_toolgroups(self) -> gr.update:
+        """List available MCP toolgroups through Llama Stack"""
+        print(f"🔍 [MCP DEBUG] Attempting to list MCP toolgroups through Llama Stack...")
         
-        # Test LLM connectivity
-        try:
-            test_response = requests.get(f"{OLS_PROVIDER_API_URL.replace('/v1', '')}/health", timeout=5)
-            if test_response.status_code == 200:
-                llm_status.append("   • Connection: ✅ Accessible")
-            else:
-                llm_status.append(f"   • Connection: ⚠️ Responding with status {test_response.status_code}")
-        except Exception as e:
-            llm_status.append(f"   • Connection: ❌ Error - {str(e)}")
-    else:
-        llm_status.append("   • Status: ❌ Not configured")
-    
-    # 3. MCP Health and Connection Details
-    mcp_status = []
-    mcp_status.append("☸️ MCP Server:")
-    
-    if KUBERNETES_MCP_URL:
-        mcp_status.append(f"   • URL: {KUBERNETES_MCP_URL}")
+        # Use the shared client to get tools (which contain toolgroups)
+        tools = self.client.tools.list()
         
-        # Test MCP connectivity
-        try:
-            # Use base URL for health check (remove /mcp path)
-            health_url = "http://localhost:8080"
-            mcp_response = requests.get(f"{health_url}/health", timeout=5)
-            if mcp_response.status_code == 200:
-                mcp_status.append("   • Health: ✅ Responding")
-                
-                # Try to list tools
-                try:
-                    tools_response = requests.post(
-                        KUBERNETES_MCP_URL,
-                        headers={"Content-Type": "application/json"},
-                        json={
-                            "jsonrpc": "2.0",
-                            "id": 1,
-                            "method": "tools/list",
-                            "params": {}
-                        },
-                        timeout=10
-                    )
-                    
-                    if tools_response.status_code == 200:
-                        tools_data = tools_response.json()
-                        if "result" in tools_data and "tools" in tools_data["result"]:
-                            tools = tools_data["result"]["tools"]
-                            mcp_status.append(f"   • Tools Available: ✅ {len(tools)} tools")
-                            mcp_status.append("   • Sample Tools:")
-                            for tool in tools[:5]:  # Show first 5 tools
-                                mcp_status.append(f"     - {tool.get('name', 'Unknown')}")
-                            if len(tools) > 5:
-                                mcp_status.append(f"     ... and {len(tools) - 5} more")
-                        else:
-                            mcp_status.append("   • Tools: ⚠️ Connected but no tools found")
-                    else:
-                        mcp_status.append(f"   • Tools: ❌ Failed to list tools (HTTP {tools_response.status_code})")
-                        
-                except Exception as e:
-                    mcp_status.append(f"   • Tools: ❌ Error listing tools - {str(e)}")
-                    
-            else:
-                mcp_status.append(f"   • Health: ❌ HTTP {mcp_response.status_code}")
-                
-        except requests.exceptions.ConnectionError:
-            mcp_status.append("   • Health: ❌ Connection refused")
-        except requests.exceptions.Timeout:
-            mcp_status.append("   • Health: ⏰ Connection timeout")
-        except Exception as e:
-            mcp_status.append(f"   • Health: ❌ Error - {str(e)}")
-    else:
-        mcp_status.append("   • Status: ❌ Not configured")
-    
-    # 4. Kubernetes Access
-    k8s_status = []
-    k8s_status.append("🔧 Kubernetes Access:")
-    
-    try:
-        kubectl_result = subprocess.run(
-            ["kubectl", "version", "--client"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if kubectl_result.returncode == 0:
-            k8s_status.append("   • kubectl: ✅ Available")
-            k8s_status.append(f"   • Version: {kubectl_result.stdout.strip()}")
-        else:
-            k8s_status.append("   • kubectl: ❌ Command failed")
-            k8s_status.append(f"   • Error: {kubectl_result.stderr.strip()}")
-    except FileNotFoundError:
-        k8s_status.append("   • kubectl: ❌ Not found in PATH")
-    except Exception as e:
-        k8s_status.append(f"   • kubectl: ❌ Error - {str(e)}")
-    
-    # Combine all status information
-    full_status = "\n".join([
-        "=" * 60,
-        "SYSTEM STATUS REPORT",
-        "=" * 60,
-        "",
-        gradio_status,
-        "",
-        "\n".join(llm_status),
-        "",
-        "\n".join(mcp_status),
-        "",
-        "\n".join(k8s_status),
-        "",
-        "=" * 60
-    ])
-    
-    return full_status
-
-def test_ocp_mcp() -> str:
-    """Test OCP MCP Server connectivity"""
-    try:
-        # Use base URL for health check (remove /mcp path)
-        health_url = "http://localhost:8080"
-        response = requests.get(f"{health_url}/health", timeout=5)
-        if response.status_code == 200:
-            return "✅ OCP MCP Server is accessible and responding"
-        else:
-            return f"⚠️ OCP MCP Server responded with status: {response.status_code}"
-    except requests.exceptions.ConnectionError:
-        return "❌ Cannot connect to OCP MCP Server - connection refused"
-    except requests.exceptions.Timeout:
-        return "⏰ OCP MCP Server connection timed out"
-    except Exception as e:
-        return f"❌ Error testing OCP MCP Server: {str(e)}"
-
-def list_mcp_tools() -> tuple:
-    """List available MCP tools and update the tool selector"""
-    print(f"🔍 [MCP DEBUG] Attempting to connect to MCP server at: {KUBERNETES_MCP_URL}")
-    
-    try:
-        # Test connection first
-        print(f"🔍 [MCP DEBUG] Testing connection to MCP server...")
-        # Use base URL for health check (remove /mcp path)
-        health_url = "http://localhost:8080"
-        response = requests.get(f"{health_url}/health", timeout=5)
-        print(f"🔍 [MCP DEBUG] Health check response: HTTP {response.status_code}")
+        # Extract unique toolgroup IDs from tools
+        toolgroups = list(set(tool.toolgroup_id for tool in tools))
+        print(f"🔍 [MCP DEBUG] Found {len(toolgroups)} toolgroups: {toolgroups}")
         
-        if response.status_code != 200:
-            print(f"❌ [MCP DEBUG] Health check failed with status: {response.status_code}")
+        return gr.update(choices=toolgroups, value=None)
+    
+    def get_toolgroup_methods(self, toolgroup_name: str) -> tuple[str, gr.update]:
+        """Get methods for a specific toolgroup through Llama Stack"""
+        if not toolgroup_name:
             return (
-                '<div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #c62828;">❌ Cannot connect to MCP server</span></div>',
-                ["Select a tool...", "No tools available"],
-                "Select a tool..."
+                '<div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #c62828;">❌ Please select a toolgroup first</span></div>',
+                gr.update(choices=[], value=None)
             )
         
-        # List tools using MCP protocol
-        print(f"🔍 [MCP DEBUG] Health check successful, attempting to list tools...")
-        tools_response = requests.post(
-            KUBERNETES_MCP_URL,
-            headers={"Content-Type": "application/json"},
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "tools/list",
-                "params": {}
-            },
-            timeout=10
-        )
+        print(f"🔍 [MCP DEBUG] Getting methods for toolgroup: {toolgroup_name}")
         
-        print(f"🔍 [MCP DEBUG] Tools list response: HTTP {tools_response.status_code}")
+        # Use the shared client to get tools for the specific toolgroup
+        tools = self.client.tools.list()
         
-        if tools_response.status_code == 200:
-            tools_data = tools_response.json()
-            print(f"🔍 [MCP DEBUG] Tools response data: {json.dumps(tools_data, indent=2)}")
-            
-            if "result" in tools_data and "tools" in tools_data["result"]:
-                tools = tools_data["result"]["tools"]
-                tool_names = [tool.get("name", "Unknown") for tool in tools]
-                print(f"🔍 [MCP DEBUG] Found {len(tool_names)} tools: {tool_names}")
-                
-                # Ensure the default value is always in the choices
-                choices = ["Select a tool..."] + tool_names
-                
-                # Update status to success
-                status_html = f'<div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #2e7d32;">✅ Connected to MCP server - {len(tool_names)} tools available</span></div>'
-                
-                return status_html, choices, "Select a tool..."
-            else:
-                print(f"⚠️ [MCP DEBUG] No tools found in response: {tools_data}")
-                return (
-                    '<div style="background: #fff3e0; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #ef6c00;">⚠️ Connected but no tools found</span></div>',
-                    ["Select a tool...", "No tools available"],
-                    "Select a tool..."
-                )
-        else:
-            print(f"❌ [MCP DEBUG] Tools list failed with status: {tools_response.status_code}")
-            print(f"🔍 [MCP DEBUG] Response content: {tools_response.text}")
-            return (
-                f'<div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #c62828;">❌ Failed to list tools: {tools_response.status_code}</span></div>',
-                ["Select a tool...", "No tools available"],
-                "Select a tool..."
-            )
-            
-    except Exception as e:
-        print(f"❌ [MCP DEBUG] Exception occurred: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return (
-            f'<div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #c62828;">❌ Error: {str(e)}</span></div>',
-            ["Select a tool...", "No tools available"],
-            "Select a tool..."
-        )
-
-def execute_mcp_tool(tool_name: str, params_json: str) -> str:
-    """Execute an MCP tool with the given parameters"""
-    if tool_name == "Select a tool..." or not tool_name:
-        return "❌ Please select a tool first"
-    
-    try:
-        # Parse parameters
-        try:
-            params = json.loads(params_json) if params_json.strip() else {}
-        except json.JSONDecodeError:
-            return "❌ Invalid JSON parameters. Please check your input."
-        
-        # Execute tool using MCP protocol
-        response = requests.post(
-            KUBERNETES_MCP_URL,
-            headers={"Content-Type": "application/json"},
-            json={
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": params
-                }
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            result_data = response.json()
-            if "result" in result_data:
-                # Format the result nicely
-                formatted_result = json.dumps(result_data["result"], indent=2)
-                return f"✅ Tool '{tool_name}' executed successfully:\n\n```json\n{formatted_result}\n```"
-            elif "error" in result_data:
-                return f"❌ Tool '{tool_name}' failed:\n\n```json\n{json.dumps(result_data['error'], indent=2)}\n```"
-            else:
-                return f"⚠️ Tool '{tool_name}' returned unexpected response:\n\n```json\n{json.dumps(result_data, indent=2)}\n```"
-        else:
-            return f"❌ HTTP Error {response.status_code}: {response.text}"
-            
-    except requests.exceptions.Timeout:
-        return f"⏰ Tool '{tool_name}' execution timed out"
-    except Exception as e:
-        return f"❌ Error executing tool '{tool_name}': {str(e)}"
-
-def chat_with_llm(message: str, chat_history: List[Dict[str, str]]) -> tuple:
-    """Handle chat with LLM, enriched with MCP data"""
-    if not message.strip():
-        return chat_history, ""
-    
-    # Add user message to history
-    chat_history.append({"role": "user", "content": message})
-    
-    # Check if the message is asking for Kubernetes information
-    kubernetes_keywords = ['pod', 'pods', 'deployment', 'deployments', 'service', 'services', 'namespace', 'namespaces', 'cluster', 'kubernetes', 'k8s', 'node', 'nodes']
-    is_kubernetes_query = any(keyword in message.lower() for keyword in kubernetes_keywords)
-    
-    if is_kubernetes_query:
-        # Use MCP to gather Kubernetes data
-        try:
-            print(f"🔍 [MCP CHAT] Detected Kubernetes query: {message}")
-            
-            # Get available tools first
-            tools_response = requests.post(
-                KUBERNETES_MCP_URL,
-                headers={"Content-Type": "application/json"},
-                json={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "tools/list",
-                    "params": {}
-                },
-                timeout=10
-            )
-            
-            if tools_response.status_code == 200:
-                tools_data = tools_response.json()
-                if "result" in tools_data and "tools" in tools_data["result"]:
-                    tools = tools_data["result"]["tools"]
-                    print(f"🔍 [MCP CHAT] Found {len(tools)} MCP tools")
-                    
-                    # Try to get relevant data based on the query
-                    kubernetes_data = {}
-                    
-                    # Check for pods query
-                    if any(word in message.lower() for word in ['pod', 'pods']):
-                        try:
-                            # Determine namespace from message or use default
-                            namespace = "default"
-                            if "namespace" in message.lower():
-                                # Simple extraction - could be improved
-                                if "default" in message.lower():
-                                    namespace = "default"
-                                elif "kube-system" in message.lower():
-                                    namespace = "kube-system"
-                            
-                            pods_response = requests.post(
-                                KUBERNETES_MCP_URL,
-                                headers={"Content-Type": "application/json"},
-                                json={
-                                    "jsonrpc": "2.0",
-                                    "id": 2,
-                                    "method": "tools/call",
-                                    "params": {
-                                        "name": "pods_list",
-                                        "arguments": {"namespace": namespace}
-                                    }
-                                },
-                                timeout=15
-                            )
-                            
-                            if pods_response.status_code == 200:
-                                pods_data = pods_response.json()
-                                if "result" in pods_data:
-                                    kubernetes_data["pods"] = pods_data["result"]
-                                    print(f"🔍 [MCP CHAT] Retrieved pods data for namespace: {namespace}")
-                        except Exception as e:
-                            print(f"⚠️ [MCP CHAT] Error getting pods: {str(e)}")
-                    
-                    # Check for namespaces query
-                    if any(word in message.lower() for word in ['namespace', 'namespaces']):
-                        try:
-                            namespaces_response = requests.post(
-                                KUBERNETES_MCP_URL,
-                                headers={"Content-Type": "application/json"},
-                                json={
-                                    "jsonrpc": "2.0",
-                                    "id": 3,
-                                    "method": "tools/call",
-                                    "params": {
-                                        "name": "namespaces_list",
-                                        "arguments": {}
-                                    }
-                                },
-                                timeout=15
-                            )
-                            
-                            if namespaces_response.status_code == 200:
-                                namespaces_data = namespaces_response.json()
-                                if "result" in namespaces_data:
-                                    kubernetes_data["namespaces"] = namespaces_data["result"]
-                                    print(f"🔍 [MCP CHAT] Retrieved namespaces data")
-                        except Exception as e:
-                            print(f"⚠️ [MCP CHAT] Error getting namespaces: {str(e)}")
-                    
-                    # Enhance the prompt with Kubernetes data
-                    if kubernetes_data:
-                        enhanced_prompt = f"""
-User Question: {message}
-
-Kubernetes Cluster Data (retrieved via MCP):
-{json.dumps(kubernetes_data, indent=2)}
-
-Please provide a helpful response based on this real-time Kubernetes data and your knowledge. Format the response to be clear and actionable.
-"""
-                        print(f"🔍 [MCP CHAT] Enhanced prompt with Kubernetes data")
-                    else:
-                        enhanced_prompt = message
-                        print(f"🔍 [MCP CHAT] No Kubernetes data retrieved, using original prompt")
-                        
+        # Filter tools by toolgroup and extract individual tools
+        methods = []
+        for tool in tools:
+            if hasattr(tool, 'toolgroup_id') and tool.toolgroup_id == toolgroup_name:
+                # Check if this tool has individual tools/methods
+                if hasattr(tool, 'tools') and tool.tools:
+                    # Tool contains individual methods
+                    for individual_tool in tool.tools:
+                        method_name = getattr(individual_tool, 'name', getattr(individual_tool, 'identifier', 'Unknown'))
+                        methods.append(method_name)
                 else:
-                    print(f"⚠️ [MCP CHAT] No tools found in MCP response")
-                    enhanced_prompt = message
+                    # This is a direct tool
+                    method_name = getattr(tool, 'name', getattr(tool, 'identifier', 'Unknown'))
+                    methods.append(method_name)
+        
+        print(f"🔍 [MCP DEBUG] Found {len(methods)} methods: {methods}")
+        
+        # Update status to success
+        status_html = f'<div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 15px;"><strong>Status:</strong> <span style="color: #2e7d32;">✅ Found {len(methods)} methods in toolgroup "{toolgroup_name}"</span></div>'
+        
+        return status_html, gr.update(choices=methods, value=None)
+    
+    def execute_tool(self, toolgroup_name: str, method_name: str, params_json: str) -> str:
+        """Execute an MCP tool through Llama Stack using toolgroup and method"""
+        if not toolgroup_name:
+            return "❌ Please select a toolgroup first"
+        
+        if not method_name:
+            return "❌ Please select a method first"
+        
+        try:
+            # Parse parameters
+            try:
+                params = json.loads(params_json) if params_json.strip() else {}
+            except json.JSONDecodeError:
+                return "❌ Invalid JSON parameters. Please check your input."
+            
+            # Execute tool through Llama Stack using tool_runtime
+            result = self.client.tool_runtime.invoke_tool(
+                tool_name=method_name,
+                kwargs=params
+            )
+            
+            if result:
+                # Extract the actual result data from ToolInvocationResult
+                try:
+                    # Handle ToolInvocationResult structure
+                    if hasattr(result, 'content') and result.content:
+                        # Extract text from TextContentItem objects
+                        if isinstance(result.content, list):
+                            text_parts = []
+                            for item in result.content:
+                                if hasattr(item, 'text'):
+                                    text_parts.append(item.text)
+                                else:
+                                    text_parts.append(str(item))
+                            result_data = '\n'.join(text_parts)
+                        else:
+                            result_data = str(result.content)
+                    elif hasattr(result, 'text'):
+                        result_data = result.text
+                    elif hasattr(result, 'data'):
+                        result_data = result.data
+                    else:
+                        # Fallback: convert to string representation
+                        result_data = str(result)
+                    
+                    # Try to format as JSON if it's a dict/list, otherwise use string
+                    if isinstance(result_data, (dict, list)):
+                        formatted_result = json.dumps(result_data, indent=2)
+                    else:
+                        formatted_result = str(result_data)
+                        
+                    return f"✅ Method '{method_name}' from toolgroup '{toolgroup_name}' executed successfully:\n\n```\n{formatted_result}\n```"
+                except Exception as format_error:
+                    # If JSON formatting fails, return as string
+                    return f"✅ Method '{method_name}' from toolgroup '{toolgroup_name}' executed successfully:\n\n```\n{str(result)}\n```"
             else:
-                print(f"⚠️ [MCP CHAT] Failed to get MCP tools: {tools_response.status_code}")
-                enhanced_prompt = message
+                return f"❌ Method '{method_name}' from toolgroup '{toolgroup_name}' failed: No result returned"
                 
         except Exception as e:
-            print(f"❌ [MCP CHAT] Error in MCP integration: {str(e)}")
-            enhanced_prompt = message
-    else:
-        enhanced_prompt = message
-    
-    # Get LLM response with enhanced prompt
-    result = llm_client.chat_completion(enhanced_prompt)
-    
-    if result["success"]:
-        response = result["response"]
-        chat_history.append({"role": "assistant", "content": response})
-        return chat_history, ""
-    else:
-        error_msg = f"❌ Error: {result['error']}"
-        chat_history.append({"role": "assistant", "content": error_msg})
-        return chat_history, ""
+            return f"❌ Error executing method '{method_name}' from toolgroup '{toolgroup_name}': {str(e)}"
 
-def create_demo():
+
+class SystemStatusTab:
+    """Handles system status functionality"""
+    
+    def __init__(self, client: LlamaStackClient, llama_stack_url: str):
+        self.client = client
+        self.llama_stack_url = llama_stack_url
+    
+    def get_system_status(self) -> str:
+        """Get comprehensive system status with better structure"""
+        
+        # 1. Gradio Health
+        gradio_status = "✅ Gradio Application: Running and accessible"
+        
+        # 2. Llama Stack Server Health and Version
+        llama_stack_status = []
+        llama_stack_status.append("🚀 Llama Stack Server:")
+        llama_stack_status.append(f"   • URL: {self.llama_stack_url}")
+        
+        try:
+            # Get version information
+            version_info = self.client.inspect.version()
+            llama_stack_status.append(f"   • Version: ✅ {version_info.version}")
+            
+            # Get health information
+            health_info = self.client.inspect.health()
+            llama_stack_status.append(f"   • Health: ✅ {health_info.status}")
+            
+        except Exception as e:
+            llama_stack_status.append("   • Status: ❌ Failed to connect to Llama Stack server")
+            llama_stack_status.append(f"   • Error: {str(e)}")
+        
+        # 3. LLM Service (Inference)
+        llm_status = []
+        llm_status.append("🤖 LLM Service (Inference):")
+        
+        try:
+            # Test LLM connectivity with the correct model name
+            test_response = self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello, this is a test message."}
+                ],
+                model=DEFAULT_LLM_MODEL,
+                temperature=0.7,
+                max_tokens=100
+            )
+            llm_status.append("   • Status: ✅ LLM service responding")
+            llm_status.append(f"   • Model: {DEFAULT_LLM_MODEL}")
+            llm_status.append(f"   • Response: ✅ Received {len(test_response.choices[0].message.content)} characters")
+            
+        except Exception as e:
+            llm_status.append("   • Status: ❌ Failed to connect to LLM service")
+            llm_status.append(f"   • Error: {str(e)}")
+        
+        # 4. MCP Server
+        mcp_status = []
+        mcp_status.append("☸️ MCP Server:")
+        
+        try:
+            # List tools to check MCP server connectivity
+            tools = self.client.tools.list()
+            
+            if tools:
+                # Extract unique toolgroup IDs
+                toolgroups = list(set(tool.toolgroup_id for tool in tools))
+                mcp_status.append("   • Status: ✅ MCP server responding")
+                mcp_status.append(f"   • Toolgroups: ✅ Found {len(toolgroups)} toolgroup(s)")
+                
+                # List all toolgroup identifiers as a simple list
+                if toolgroups:
+                    mcp_status.append("   • Toolgroup IDs:")
+                    for toolgroup_id in toolgroups:
+                        mcp_status.append(f"      - {toolgroup_id}")
+            else:
+                mcp_status.append("   • Status: ⚠️ MCP server responding but no toolgroups found")
+                mcp_status.append("   • Toolgroups: 0")
+                
+        except Exception as e:
+            mcp_status.append("   • Status: ❌ Failed to connect to MCP server")
+            mcp_status.append(f"   • Error: {str(e)}")
+        
+        # Combine all status information
+        full_status = "\n".join([
+            "=" * 60,
+            "SYSTEM STATUS REPORT",
+            "=" * 60,
+            "",
+            gradio_status,
+            "",
+            "\n".join(llama_stack_status),
+            "",
+            "\n".join(llm_status),
+            "",
+            "\n".join(mcp_status),
+            "",
+            "=" * 60
+        ])
+        
+        return full_status
+
+
+def initialize_llama_stack_client() -> tuple[LlamaStackClient, ChatTab, MCPTestTab, SystemStatusTab]:
+    """Initialize Llama Stack client and all tab classes"""
+    try:
+        print(f"🔧 Initializing Llama Stack client with URL: {LLAMA_STACK_URL}")
+        llama_stack_client = LlamaStackClient(base_url=LLAMA_STACK_URL)
+        print(f"✅ Llama Stack client initialized successfully with URL: {LLAMA_STACK_URL}")
+        
+        # Initialize tab classes with shared client
+        chat_tab = ChatTab(llama_stack_client)
+        mcp_test_tab = MCPTestTab(llama_stack_client)
+        system_status_tab = SystemStatusTab(llama_stack_client, LLAMA_STACK_URL)
+        
+        print("✅ All tab classes initialized successfully")
+        return llama_stack_client, chat_tab, mcp_test_tab, system_status_tab
+        
+    except Exception as e:
+        print(f"❌ Failed to initialize Llama Stack client: {e}")
+        print("❌ Llama Stack client is not available. Application cannot start.")
+        print("💡 Please ensure the Llama Stack server is running and accessible.")
+        sys.exit(1)
+
+
+def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: SystemStatusTab):
     """Create the beautiful Gradio interface with header and chat"""
     
     with gr.Blocks(
@@ -604,7 +375,7 @@ def create_demo():
             border-radius: 15px;
             padding: 20px;
             background: #f8f9fa;
-            height: 600px;
+            height: 500px;
             overflow-y: auto;
         }
         .code-canvas {
@@ -650,14 +421,7 @@ def create_demo():
                 </div>
                 """)
         
-        # Top Right Controls
-        with gr.Row():
-            with gr.Column(scale=1):
-                pass  # Left spacer
-            with gr.Column(scale=1):
-                with gr.Row():
-                    # Test OCP MCP Server Button
-                    test_mcp_btn = gr.Button("🧪 Test OCP MCP Server", variant="secondary")
+        # Top Right Controls - Removed for cleaner interface
         
         # Main Content Area - Two Columns
         with gr.Row():
@@ -670,7 +434,7 @@ def create_demo():
                         # Chat Interface
                         chatbot = gr.Chatbot(
                             label="💬 Chat with AI Assistant",
-                            height=500,
+                            height=300,
                             show_label=True,
                             type="messages"
                         )
@@ -696,17 +460,29 @@ def create_demo():
                             label="Status"
                         )
                         
-                        # Tool Selector
-                        tool_selector = gr.Dropdown(
-                            choices=["Select a tool..."],
-                            label="Select MCP Tool",
-                            value="Select a tool...",
+                        # Toolgroup Selector with Refresh Button
+                        with gr.Row():
+                            refresh_toolgroups_btn = gr.Button("🔄ToolGroups", variant="secondary", size="md", scale=1)
+                            refresh_methods_btn = gr.Button("🔄Methods", variant="secondary", size="md", scale=1)
+
+                        toolgroup_selector = gr.Dropdown(
+                            choices=["Select a toolgroup..."],
+                            label="Select Toolgroup",
+                            value="Select a toolgroup...",
                             interactive=True
                         )
+
+                        method_selector = gr.Dropdown(
+                            choices=["Select a method..."],
+                            label="Select Method",
+                            value="Select a method...",
+                            interactive=True
+                        )
+
                         
                         # Parameters Section
                         with gr.Group():
-                            gr.Markdown("**Parameters:**")
+                            # gr.Markdown("**Parameters:**")
                             params_input = gr.Textbox(
                                 label="Parameters (JSON)",
                                 placeholder='{"namespace": "default"}',
@@ -715,28 +491,15 @@ def create_demo():
                             )
                         
                         # Execute Button
-                        execute_btn = gr.Button("Execute Tool", variant="primary", size="lg")
-                        
-                        # Refresh Tools Button
-                        refresh_btn = gr.Button("🔄 Refresh Tools", variant="secondary")
-                        
-                        # Auto-load tools when tab is selected
-                        gr.on(
-                            triggers=gr.TabItem("🧪 MCP Test").select,
-                            fn=list_mcp_tools,
-                            outputs=[status_indicator, tool_selector, tool_selector]
-                        )
+                        execute_btn = gr.Button("Execute Method", variant="primary", size="lg")
                     
                     # System Status Tab
                     with gr.TabItem("🔍 System Status"):
-                        # Status display area
-                        status_display = gr.HTML(
-                            '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;"><h3>🔍 System Status</h3><p>Click "Check System Status" to view detailed system information...</p></div>',
-                            label="System Status"
-                        )
-                        
                         # Check Status Button
                         check_status_btn = gr.Button("Check System Status", variant="primary", size="lg")
+                        
+                        # Note for user
+                        gr.Markdown("Click the button above to view detailed system information in the right panel.")
             
             # Right Column - Code Canvas (60%)
             with gr.Column(scale=3):
@@ -746,40 +509,42 @@ def create_demo():
                     label="Content Area"
                 )
         
-        # Event handlers
-        test_mcp_btn.click(
-            fn=lambda: f'<div class="code-canvas"><h3>🧪 Test OCP MCP Server</h3><pre>MCP server is integrated into the chat functionality. Ask questions about your Kubernetes cluster in the Chat tab!</pre></div>',
-            outputs=content_area
+        # Event handlers     
+        # Refresh Toolgroups Button (next to dropdown)
+        refresh_toolgroups_btn.click(
+            fn=mcp_test_tab.list_toolgroups,
+            outputs=[toolgroup_selector]
         )
         
-        # MCP Test Tab functionality
-        refresh_btn.click(
-            fn=list_mcp_tools,
-            outputs=[status_indicator, tool_selector, tool_selector]
+        # Refresh Methods Button
+        refresh_methods_btn.click(
+            fn=mcp_test_tab.get_toolgroup_methods,
+            inputs=[toolgroup_selector],
+            outputs=[status_indicator, method_selector]
         )
         
         execute_btn.click(
-            fn=lambda tool_name, params: f'<div class="code-canvas"><h3>🧪 MCP Tool Execution: {tool_name}</h3><pre>{execute_mcp_tool(tool_name, params)}</pre></div>',
-            inputs=[tool_selector, params_input],
+            fn=lambda toolgroup, method, params: f'<div class="code-canvas"><h3>🧪 MCP Method Execution: {method}</h3><pre>{mcp_test_tab.execute_tool(toolgroup, method, params)}</pre></div>',
+            inputs=[toolgroup_selector, method_selector, params_input],
             outputs=content_area
         )
         
         # System Status Tab functionality
         check_status_btn.click(
-            fn=lambda: f'<div class="code-canvas"><h3>🔍 System Status</h3><pre>{system_status()}</pre></div>',
-            outputs=status_display
+            fn=lambda: f'<div class="code-canvas"><h3>🔍 System Status</h3><pre>{system_status_tab.get_system_status()}</pre></div>',
+            outputs=content_area
         )
         
         # Chat functionality
         send_btn.click(
-            fn=chat_with_llm,
+            fn=chat_tab.chat_completion,
             inputs=[msg, chatbot],
             outputs=[chatbot, msg]
         )
         
         # Handle Enter key to send message
         msg.submit(
-            fn=chat_with_llm,
+            fn=chat_tab.chat_completion,
             inputs=[msg, chatbot],
             outputs=[chatbot, msg]
         )
@@ -791,9 +556,14 @@ def create_demo():
     
     return demo
 
+
 def main():
     """Main function to launch the Gradio app"""
-    demo = create_demo()
+    # Initialize Llama Stack client and tab classes
+    llama_stack_client, chat_tab, mcp_test_tab, system_status_tab = initialize_llama_stack_client()
+    
+    # Create the Gradio demo with tab instances
+    demo = create_demo(chat_tab, mcp_test_tab, system_status_tab)
     
     # Launch the app
     demo.launch(
@@ -803,6 +573,7 @@ def main():
         debug=True,
         show_error=True
     )
+
 
 if __name__ == "__main__":
     main()

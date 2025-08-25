@@ -148,6 +148,7 @@ There are several blogs you should read before you start:
 
 * [Exploring Llama Stack with Python: Tool calling and agents](https://developers.redhat.com/articles/2025/07/15/exploring-llama-stack-python-tool-calling-and-agents)
 * [Level 5: Agents & MCP Tools](https://github.com/opendatahub-io/llama-stack-demos/blob/main/demos/rag_agentic/notebooks-output/Level5_agents_and_mcp.ipynb)
+* [How to auth with Llama Stack MCP](https://medium.com/@gallettilance/how-to-auth-w-llama-stack-mcp-4a8631398555)
 
 
 

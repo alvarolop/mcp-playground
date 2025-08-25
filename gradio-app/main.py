@@ -371,11 +371,24 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
     
     with gr.Blocks(
         title="Intelligent CD Chatbot",
-        theme=gr.themes.Soft(),  # Fixed light theme - no dark mode switching
+        # https://www.gradio.app/guides/theming-guide
+        theme=gr.themes.Default(),  # Fixed light theme - no dark mode switching
         css="""
+        /* Full screen responsive layout */
         .gradio-container {
-            max-width: 1400px !important;
+            max-width: 100vw !important;
+            width: 100vw !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
+        
+        /* Main content area - full width */
+        .main-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        /* Header styling */
         .header-container {
             background: linear-gradient(135deg, #ff8c42 0%, #ffa726 50%, #ff7043 100%);
             color: white;
@@ -383,64 +396,101 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
             border-radius: 0 0 15px 15px;
             margin-bottom: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100% !important;
         }
+        
         .header-content {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
+        
         .header-left {
             display: flex;
             align-items: center;
             gap: 15px;
         }
+        
         .logo {
             width: 50px;
             height: 50px;
             border-radius: 10px;
         }
+        
         .header-title {
             font-size: 2.2em;
             font-weight: bold;
             margin: 0;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
+        
         .header-subtitle {
             font-size: 1.1em;
             opacity: 0.95;
             margin: 5px 0 0 0;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
+        
         .header-right {
             display: flex;
             align-items: center;
             gap: 15px;
         }
-        .top-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: flex-end;
-            margin-bottom: 20px;
+        
+        /* Chat input and buttons layout */
+        .chat-input-container {
+            display: flex !important;
+            gap: 10px !important;
+            align-items: flex-start !important;
+            width: 100% !important;
         }
-        .chat-area {
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-            height: 500px;
-            overflow-y: auto;
+        
+        .chat-input-field {
+            flex: 1 !important;
+            min-width: 0 !important;
         }
+        
+        .chat-buttons-column {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+        }
+        
+        /* Dynamic heights for responsive layout */
+        .chatbot-container {
+            height: calc(100vh - 300px) !important;
+            min-height: 400px !important;
+            max-height: 800px !important;
+        }
+        
+        /* Code canvas - dynamic height */
         .code-canvas {
             border: 2px solid #e0e0e0;
             border-radius: 15px;
             padding: 20px;
             background: #f8f9fa;
-            min-height: 600px;
+            height: calc(100vh - 300px) !important;
+            min-height: 400px !important;
+            max-height: 800px !important;
             overflow-y: auto;
+            width: 100% !important;
         }
-        .chat-input {
-            margin-top: 20px;
+        
+        /* Ensure both panels have equal heights */
+        .equal-height-panels {
+            display: flex !important;
+            align-items: stretch !important;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 1.8em !important;
+            }
+            .header-subtitle {
+                font-size: 1em !important;
+            }
         }
         """
     ) as demo:
@@ -476,34 +526,31 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
         
         # Top Right Controls - Removed for cleaner interface
         
-        # Main Content Area - Two Columns
-        with gr.Row():
+        # Main Content Area - Two Columns with equal heights
+        with gr.Row(elem_classes=["equal-height-panels"]):
             # Left Column - Chatbot (40%)
-            with gr.Column(scale=2):
+            with gr.Column(scale=2, elem_classes=["chatbot-container"]):
                 # Tab system for different interfaces
                 with gr.Tabs():
                     # Chat Tab
                     with gr.TabItem("💬 Chat"):
-                        # Chat Interface
+                        # Chat Interface - Dynamic height for responsiveness
                         chatbot = gr.Chatbot(
                             label="💬 Chat with AI Assistant",
-                            height=300,
                             show_label=True,
                             type="messages"
                         )
                         
-                        # Chat Input
-                        with gr.Row():
-                            msg = gr.Textbox(
-                                label="Message",
-                                show_label=False,
-                                placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
-                                lines=1,
-                                scale=4
-                            )
-                            send_btn = gr.Button("Send", variant="primary", scale=1)
+                        # Chat Input with built-in submit button
+                        msg = gr.Textbox(
+                            label="Message",
+                            show_label=False,
+                            placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
+                            lines=1,
+                            submit_btn=True  # Built-in submit button with icon
+                        )
                         
-                        # Clear button
+                        # Clear button - positioned to align with code block bottom
                         clear_btn = gr.Button("Clear Chat", variant="secondary")
                     
                     # MCP Test Tab
@@ -591,14 +638,7 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
             outputs=content_area
         )
         
-        # Chat functionality
-        send_btn.click(
-            fn=chat_tab.chat_completion,
-            inputs=[msg, chatbot],
-            outputs=[chatbot, msg]
-        )
-        
-        # Handle Enter key to send message
+        # Chat functionality - using built-in submit button
         msg.submit(
             fn=chat_tab.chat_completion,
             inputs=[msg, chatbot],

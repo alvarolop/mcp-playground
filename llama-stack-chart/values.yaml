@@ -1,0 +1,16 @@
+# Default values for rhoai-installation-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+name: llama-stack
+namespace: rhoai-llama-stack
+type: mcp # vllm, mcp
+inference:
+  model: "granite-3-3-8b-instruct"
+  vllm:
+    url: "https://URL:PORT/v1"
+    tlsVerify: "true"
+    apiToken: ""
+  mcp:
+    url: "http://ocp-mcp-server.intelligent-cd.svc.cluster.local:8080"
+    tlsVerify: "true"

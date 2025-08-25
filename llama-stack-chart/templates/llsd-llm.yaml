@@ -1,0 +1,46 @@
+{{- if eq .Values.type "vllm" }}
+---
+apiVersion: llamastack.io/v1alpha1
+kind: LlamaStackDistribution
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: 1
+  server:
+    distribution:
+      name: rh-dev
+    containerSpec:
+      resources:
+        requests:
+          memory: "500Mi"
+          cpu: "100m"
+        limits:
+          memory: "8Gi"
+          cpu: "2"
+      env:
+        - name: INFERENCE_MODEL
+          valueFrom:
+            secretKeyRef:
+              key: INFERENCE_MODEL
+              name: {{ .Values.name }}-secret
+        - name: VLLM_URL
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_URL
+              name: {{ .Values.name }}-secret
+        - name: VLLM_TLS_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_TLS_VERIFY
+              name: {{ .Values.name }}-secret
+        - name: VLLM_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_API_TOKEN
+              name: {{ .Values.name }}-secret
+    storage:
+      size: "20Gi"
+{{- end }}

@@ -1,0 +1,11 @@
+{{- if eq .Values.type "mcp" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  run.yaml: |-
+    {{- tpl ($.Files.Get "conf/mcp-run.yaml") . | nindent 4 }}
+{{- end }}

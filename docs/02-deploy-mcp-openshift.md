@@ -33,7 +33,7 @@ First, build the MCP Server image and push it to your container registry. This s
 Deploy the MCP server to your Kubernetes cluster using the Helm chart. This will create all necessary resources including the deployment, service, and RBAC configuration.
 
 ```bash
-helm template ocp-mcp ./mcp-server-chart | oc apply -f -
+helm template mcp-server-chart | oc apply -f -
 ```
 
 After a few seconds, you should see the MCP server running:

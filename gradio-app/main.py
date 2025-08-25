@@ -523,8 +523,13 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                             </div>
                         </div>
                         <div class="header-right">
-                            <div style="font-size: 1.2em; opacity: 0.8;">
-                                Powered by <strong>Red Hat AI</strong>
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 2px;">
+                                    Powered by
+                                </div>
+                                <div style="font-size: 1.2em; font-weight: bold; opacity: 0.9;">
+                                    Red Hat AI
+                                </div>
                             </div>
                         </div>
                     </div>

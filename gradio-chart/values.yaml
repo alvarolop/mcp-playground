@@ -16,6 +16,10 @@ gradio:
   # Gradio description
   description: "A simple Gradio application"
 
+llamaStack:
+  url: "http://llama-stack-service.rhoai-llama-stack.svc.cluster.local:8321"
+  model: "granite-3-3-8b-instruct"
+
 # Application Configuration
 replicaCount: 1
 

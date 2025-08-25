@@ -38,6 +38,10 @@ spec:
               value: {{ .Values.gradio.title | quote }}
             - name: GRADIO_DESCRIPTION
               value: {{ .Values.gradio.description | quote }}
+            - name: LLAMA_STACK_URL
+              value: {{ .Values.llamaStack.url | quote }}
+            - name: DEFAULT_LLM_MODEL
+              value: {{ .Values.llamaStack.model | quote }}
           
           livenessProbe:
             httpGet:

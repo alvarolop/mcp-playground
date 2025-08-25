@@ -3,7 +3,9 @@
 # Declare variables to be passed into your templates.
 
 name: llama-stack
-namespace: rhoai-llama-stack
+namespace:
+  create: true
+  name: intelligent-cd # TODO: change from rhoai-llama-stack
 type: mcp # vllm, mcp
 inference:
   model: "granite-3-3-8b-instruct"
@@ -14,3 +16,5 @@ inference:
   mcp:
     url: "http://ocp-mcp-server.intelligent-cd.svc.cluster.local:8080"
     tlsVerify: "true"
+route:
+  enabled: false

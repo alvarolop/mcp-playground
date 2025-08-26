@@ -372,7 +372,7 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
     with gr.Blocks(
         title="Intelligent CD Chatbot",
         # https://www.gradio.app/guides/theming-guide
-        theme=gr.themes.Soft(),  # Fixed light theme - no dark mode switching
+        theme=gr.themes.Default(),  # Fixed light theme - no dark mode switching
         css="""
         /* Full screen responsive layout */
         .gradio-container {
@@ -550,10 +550,14 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                         with gr.Column():
                             # Chat Interface - Takes most of the space (scale 7)
                             with gr.Column(scale=7):
-                                chatbot = gr.Chatbot(
+                                history = [gr.ChatMessage(role="assistant", content="Hello, how can I help you?")]
+                                
+                                chatbot = gr.Chatbot(history,
                                     label="💬 Chat with AI Assistant",
-                                    show_label=True,
-                                    type="messages"
+                                    show_label=False,
+                                    avatar_images=["assets/chatbot.png", "assets/chatbot.png"],
+                                    type="messages",
+                                    layout="panel"
                                 )
                             
                             # Chat Input - Takes less space (scale 3)
@@ -562,8 +566,10 @@ def create_demo(chat_tab: ChatTab, mcp_test_tab: MCPTestTab, system_status_tab: 
                                     label="Message",
                                     show_label=False,
                                     placeholder="Ask me about Kubernetes, GitOps, or OpenShift deployments... (Press Enter to send, Shift+Enter for new line)",
-                                    lines=1,
-                                    submit_btn=True  # Built-in submit button with icon
+                                    lines=2,
+                                    max_lines=4,
+                                    submit_btn=True,
+                                    stop_btn=True
                                 )
                     
                     # MCP Test Tab

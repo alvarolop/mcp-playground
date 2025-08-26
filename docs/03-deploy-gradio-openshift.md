@@ -76,7 +76,7 @@ podman build -t quay.io/alopezme/intelligent-cd-gradio:latest gradio-app
 Test the image locally:
 
 ```bash
-podman run -p 7860:7860 quay.io/alopezme/intelligent-cd-gradio:latest
+podman run --network host quay.io/alopezme/intelligent-cd-gradio:latest
 ```
 
 Push the image to the registry:

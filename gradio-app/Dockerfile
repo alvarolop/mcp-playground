@@ -25,6 +25,9 @@ COPY --from=builder /opt/app-root/bin /usr/local/bin
 # Copy application code
 COPY main.py .
 
+# Copy assets folder for chatbot avatars
+COPY assets/ ./assets/
+
 # Expose the port Gradio runs on
 EXPOSE 7860
 

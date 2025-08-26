@@ -1,0 +1,80 @@
+# Build arguments
+ARG MCP_SERVER_VERSION=main
+ARG MCP_SERVER_REPO=https://github.com/akuity/argocd-mcp.git
+ARG NODE_VERSION=22.18.0
+
+# Build stage
+FROM registry.access.redhat.com/ubi9/ubi:latest as builder
+
+# Set build arguments
+ARG MCP_SERVER_VERSION
+ARG MCP_SERVER_REPO
+ARG NODE_VERSION
+
+WORKDIR /app
+USER root
+
+# Install build dependencies including xz
+RUN dnf install -y wget tar git make xz && \
+    wget https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    tar -xf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local && \
+    rm -f node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/node /usr/local/bin/node && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/npm /usr/local/bin/npm && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/npx /usr/local/bin/npx
+
+ENV PATH="/usr/local/node-v${NODE_VERSION}-linux-x64/bin:${PATH}"
+
+# Clone and build MCP server with specific version
+RUN git clone ${MCP_SERVER_REPO} && \
+    cd argocd-mcp && \
+    git checkout ${MCP_SERVER_VERSION} && \
+    npm install && \
+    npm run build
+
+# Runtime stage
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+# Set build arguments for labels
+ARG MCP_SERVER_VERSION
+ARG MCP_SERVER_REPO
+ARG NODE_VERSION
+
+# Add metadata labels
+LABEL org.opencontainers.image.title="ArgoCD MCP Server" \
+      org.opencontainers.image.description="Model Context Protocol server for ArgoCD" \
+      org.opencontainers.image.vendor="MCP Playground" \
+      org.opencontainers.image.source="${MCP_SERVER_REPO}" \
+      org.opencontainers.image.version="${MCP_SERVER_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${BUILD_REF}" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+WORKDIR /app
+
+# Install Node.js runtime
+RUN microdnf install -y wget tar xz && \
+    wget https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    tar -xf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local && \
+    rm -f node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/node /usr/local/bin/node && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/npm /usr/local/bin/npm && \
+    ln -s /usr/local/node-v${NODE_VERSION}-linux-x64/bin/npx /usr/local/bin/npx && \
+    microdnf clean all
+
+ENV PATH="/usr/local/node-v${NODE_VERSION}-linux-x64/bin:${PATH}"
+
+# Copy built application from builder stage
+COPY --from=builder /app/argocd-mcp /app/argocd-mcp
+
+# Create non-root user for security
+RUN adduser --system --no-create-home --uid 1000 mcpuser && \
+    chown -R mcpuser:mcpuser /app/argocd-mcp
+
+USER mcpuser
+
+# Expose port for HTTP stream transport
+EXPOSE 8080
+
+# Set entrypoint with configurable options
+ENTRYPOINT ["npx", "argocd-mcp", "--stdio"]

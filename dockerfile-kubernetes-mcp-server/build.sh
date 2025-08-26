@@ -31,7 +31,7 @@ podman build \
     --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
     --build-arg BUILD_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
     -t kubernetes-mcp-server:${IMAGE_TAG} \
-    kubernetes-mcp-server-dockerfile
+    dockerfile-kubernetes-mcp-server
 
 echo "Image built successfully: kubernetes-mcp-server:${IMAGE_TAG}"
 

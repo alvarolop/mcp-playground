@@ -23,7 +23,7 @@ First, build the MCP Server image and push it to your container registry. This s
 
 ```bash
 # Build and tag the image with version v0.0.49
-./kubernetes-mcp-server-dockerfile/build.sh v0.0.49 v0.0.49
+./dockerfile-kubernetes-mcp-server/build.sh v0.0.49 v0.0.49
 ```
 
 > **Note:** The build script will prompt you to push the image to the registry.

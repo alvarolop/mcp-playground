@@ -26,14 +26,17 @@ Start here to set up MCP locally with Cursor and test the integration with a loc
 ### 2. ☸️ [Deploy MCP Server on Kubernetes](docs/02-deploy-mcp-openshift.md)
 Learn how to deploy the MCP server on Kubernetes/OpenShift for production use with proper RBAC and security.
 
-### 3. 🌐 [Deploy Gradio Interface on OpenShift](docs/03-deploy-gradio-openshift.md)
-Deploy your Gradio chatbot interface to OpenShift to make it accessible to your team.
+### 3. 🔄 [Deploy MCP Server on ArgoCD](docs/03-deploy-mcp-argocd.md)
+Set up the Akuity's ArgoCD MCP server for GitOps-based MCP deployments.
 
 ### 4. 🗄️ [Deploy Milvus Vector Database](docs/04-deploy-milvus.md)
 Set up Milvus for storing and retrieving vector embeddings to enable RAG capabilities.
 
 ### 5. 🤖 [Deploy LLaMA Stack with MCP Integration](docs/05-deploy-llama-stack.md)
 Integrate everything together using the LLaMA Stack Operator to deploy and manage LLMs.
+
+### 6. 🌐 [Deploy Gradio Interface on OpenShift](docs/06-deploy-gradio-openshift.md)
+Deploy your Gradio chatbot interface to OpenShift to make it accessible to your team.
 
 ## 🛠️ Prerequisites
 

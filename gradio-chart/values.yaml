@@ -5,20 +5,9 @@
 global:
   namespace: "intelligent-cd"
 
-# Gradio Application Configuration
-gradio:
-  # Gradio app file path (relative to the container)
-  appFile: "app.py"
-  # Gradio app function name
-  appFunction: "demo"
-  # Gradio title
-  title: "Gradio Application"
-  # Gradio description
-  description: "A simple Gradio application"
-
 llamaStack:
   url: "http://llama-stack-service.intelligent-cd.svc.cluster.local:8321"
-  model: "granite-3-3-8b-instruct"
+  model: "llama-3-2-3b"
 
 # Application Configuration
 replicaCount: 1

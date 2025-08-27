@@ -64,7 +64,7 @@ gradio-app/
 ### Test the Gradio Application locally
 
 ```bash
-gradio gradio-app/main.py 
+LOG_LEVEL=INFO gradio gradio-app/main.py 
 ```
 
 ### Build the Gradio Application
@@ -89,9 +89,11 @@ podman push quay.io/alopezme/intelligent-cd-gradio:latest
 ## Step 2: Deploy the Gradio Application
 
 ```bash
-helm template gradio-chart | oc apply -f -
+helm template gradio-chart \
+--set llamaStack.url="http://llama-stack-service:8321" \
+--set llamaStack.model="llama-3-2-3b" \
+| oc apply -f -
 ```
-
 
 Great! Now you can access the Gradio application at:
 
@@ -99,11 +101,26 @@ Great! Now you can access the Gradio application at:
 oc get route gradio -n intelligent-cd --template='https://{{ .spec.host }}'
 ```
 
-Here is a sneak peak of the Gradio application:
 
-![Gradio Application](./images/gradio-dashboard-example.png)
-
+## The Gradio Application
 
 
+The application consists of 3 tabs:
 
-## Step 3: Test the Gradio Application
+1. **Chat**: A chat interface for the user to interact with the Llama Stack.
+2. **MCP Test**: A tab to test MCP servers and their tools.
+3. **System Status**: A tab to check the system status.
+
+
+The first tab is the chat interface. It allows the user to interact with the Llama Stack.
+
+![Tab 1: Chat](./images/gradio-chat.png)
+
+The second tab is the MCP Test tab. It allows the user to test the MCP servers and their tools.
+
+![Tab 2: MCP Test](./images/gradio-mcptest.png)
+
+The third tab is the System Status tab. It allows the user to check the system status.
+
+![Tab 3: System Status](./images/gradio-systemstatus.png)
+

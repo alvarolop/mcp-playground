@@ -1,22 +1,19 @@
 # ArgoCD MCP Server Docker Image
 
-This directory contains the Dockerfile and build scripts for creating a containerized version of the [ArgoCD MCP server](https://github.com/akuity/argocd-mcp).
+This directory contains the Dockerfile and build scripts for creating a containerized version of the [ArgoCD MCP server](https://www.npmjs.com/package/argocd-mcp).
 
 ## Features
 
-- **Multi-stage build** for optimized image size
+- **Official Red Hat Node.js 22** base image for enterprise compatibility
+- **Simple installation** using the published npm package
 - **Version control** via build arguments
 - **Security-focused** with non-root user
-- **Health checks** for container monitoring
 - **Proper labeling** following OCI standards
 - **Red Hat UBI base** for enterprise compatibility
-- **Node.js runtime** optimized for ArgoCD MCP operations
 
 ## Build Arguments
 
-- `MCP_SERVER_VERSION`: Git tag/branch to build from (default: `main`)
-- `MCP_SERVER_REPO`: Repository URL (default: official ArgoCD MCP repo)
-- `NODE_VERSION`: Node.js version to use (default: `18`)
+- `ARGOCD_MCP_VERSION`: npm package version to install (default: `0.3.0`)
 - `BUILD_DATE`: Build timestamp (auto-generated)
 - `BUILD_REF`: Git commit hash (auto-generated)
 
@@ -25,17 +22,20 @@ This directory contains the Dockerfile and build scripts for creating a containe
 ### Using the Build Script (Recommended)
 
 ```bash
-# Build with default settings (main branch, latest tag)
+# Build with default settings (ArgoCD MCP 0.3.0, latest tag)
 ./build.sh
 
-# Build specific version
-./build.sh v0.3.0
+# Build specific ArgoCD MCP version
+./build.sh 0.3.0
 
 # Build with custom tag
-./build.sh v0.3.0 stable
+./build.sh 0.3.0 latest
 
 # Build with custom registry
-./build.sh v0.3.0 stable my-registry.com:5000
+./build.sh 0.3.0 latest my-registry.com:5000
+
+# Force rebuild (removes cache and existing image)
+./build.sh 0.3.0 latest quay.io/alopezme --force
 ```
 
 ## Image Labels
@@ -54,10 +54,9 @@ The built image includes comprehensive metadata:
 ## Security Features
 
 - **Non-root user**: Container runs as `mcpuser` (UID 1000)
-- **Minimal base image**: Uses `ubi-minimal` for runtime
-- **Health checks**: Built-in health monitoring
-- **Multi-stage build**: Build dependencies not included in final image
-- **Production-only npm install**: Only production dependencies included
+- **Official Red Hat base**: Uses [Red Hat UBI9 Node.js 22](https://catalog.redhat.com/software/containers/ubi9/nodejs-22-minimal/664330aa459a2d3c807ccea9) (full version)
+- **Published package**: Uses the official npm package instead of building from source
+- **Proper npm permissions**: npm directories have correct ownership and permissions
 
 ## Usage
 
@@ -89,40 +88,64 @@ The ArgoCD MCP server requires the following environment variables:
 - `MCP_READ_ONLY`: Set to "true" to disable write operations (optional)
 - `NODE_TLS_REJECT_UNAUTHORIZED`: Set to "0" for self-signed certificates (optional)
 
-## Health Check
-
-The container includes a health check that runs every 30 seconds:
-
-```bash
-# Check container health
-podman healthcheck run argocd-mcp-server
-
-# View health status
-podman inspect argocd-mcp-server | jq '.[0].State.Health'
-```
-
 ## Troubleshooting
 
 ### Build Issues
 
 - Ensure you have `podman` installed
-- Check that the MCP server version exists in the repository
-- Verify network access to GitHub
-- Ensure Node.js version is compatible
+- Check that the ArgoCD MCP version exists on npm
+- Verify network access to npm registry
+- Ensure you have access to Red Hat container registry
 
 ### Runtime Issues
 
 - Check container logs: `podman logs argocd-mcp-server`
 - Verify port binding: `podman port argocd-mcp-server`
-- Check health status: `podman healthcheck run argocd-mcp-server`
 - Verify ArgoCD connection and API token
+
+### Common npm Errors
+
+#### EACCES Permission Denied for npm Directories
+
+**Error**: `npm error syscall mkdir npm error path /home/mcpuser/.npm/_cacache npm error errno EACCES`
+
+**Cause**: npm cache directories have incorrect ownership or permissions.
+
+**Solution**: This has been comprehensively fixed by:
+1. Creating all required npm directories at build time
+2. Setting proper ownership to `mcpuser` (UID 1000)
+3. Setting proper npm environment variables
+4. Using the official Red Hat Node.js 22 image
+
+**Prevention**: Always rebuild the image after Dockerfile changes:
+```bash
+./build.sh 0.3.0 latest quay.io/alopezme --force
+```
+
+## Why This Approach is Better
+
+1. **Official Red Hat support**: Uses the [official Red Hat UBI9 Node.js 22](https://catalog.redhat.com/software/containers/ubi9/nodejs-22-minimal/664330aa459a2d3c807ccea9) image
+2. **Simpler**: No need to manage Node.js installation manually
+3. **More reliable**: Uses Red Hat's tested and supported Node.js environment
+4. **Faster builds**: No Node.js compilation or NVM setup required
+5. **Easier maintenance**: Red Hat handles Node.js updates and security patches
+6. **Enterprise ready**: Fully compatible with Red Hat Enterprise Linux and OpenShift
+
+## Red Hat UBI9 Node.js 22 Benefits
+
+Using the [official Red Hat UBI9 Node.js 22](https://catalog.redhat.com/software/containers/ubi9/nodejs-22-minimal/664330aa459a2d3c807ccea9) image provides several advantages:
+
+- **Official support**: Red Hat maintains and supports the Node.js runtime
+- **Security updates**: Automatic security patches and updates
+- **Enterprise compatibility**: Works seamlessly with Red Hat platforms
+- **Full runtime**: Includes all necessary Node.js components and tools
+- **Certified**: Red Hat certified for enterprise use
 
 ## Contributing
 
 To improve this Dockerfile:
 
-1. Test with different MCP server versions
+1. Test with different ArgoCD MCP versions
 2. Verify security best practices
-3. Update base images when new versions are available
+3. Update to newer Red Hat Node.js versions when available
 4. Add additional configuration options as needed
-5. Test with different Node.js versions

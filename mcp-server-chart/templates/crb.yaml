@@ -1,14 +1,16 @@
+{{- if .Values.serviceAccount.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.mcpServer.serviceAccountName }}-cluster-admin
+  name: {{ .Values.serviceAccount.name }}-cluster-admin
   labels:
     {{- include "kubernetes-mcp-server-chart.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.mcpServer.serviceAccountName }}
-    namespace: {{ .Values.namespace | default .Release.Namespace }}
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Values.namespace.name | default .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ .Values.rbac.clusterRole | default "cluster-admin" }}
+{{- end }}

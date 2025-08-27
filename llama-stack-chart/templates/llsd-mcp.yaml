@@ -42,15 +42,25 @@ spec:
             secretKeyRef:
               key: VLLM_API_TOKEN
               name: {{ .Values.name }}-secret
-        - name: MCP_URL
+        - name: MCP_OCP_URL
           valueFrom:
             secretKeyRef:
-              key: MCP_URL
+              key: MCP_OCP_URL
               name: {{ .Values.name }}-secret
-        - name: MCP_TLS_VERIFY
+        - name: MCP_OCP_TLS_VERIFY
           valueFrom:
             secretKeyRef:
-              key: MCP_TLS_VERIFY
+              key: MCP_OCP_TLS_VERIFY
+              name: {{ .Values.name }}-secret
+        - name: MCP_ARGOCD_URL
+          valueFrom:
+            secretKeyRef:
+              key: MCP_ARGOCD_URL
+              name: {{ .Values.name }}-secret
+        - name: MCP_ARGOCD_TLS_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: MCP_ARGOCD_TLS_VERIFY
               name: {{ .Values.name }}-secret
     # Default config in /opt/app-root/run.yaml
     userConfig:

@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "kubernetes-mcp-server-chart.fullname" . }}
-  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  namespace: {{ .Values.namespace.name | default .Release.Namespace }}
   labels:
     {{- include "kubernetes-mcp-server-chart.labels" . | nindent 4 }}
 spec:
@@ -15,31 +15,29 @@ spec:
     metadata:
       labels:
         {{- include "kubernetes-mcp-server-chart.selectorLabels" . | nindent 8 }}
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
     spec:
-      serviceAccountName: {{ .Values.mcpServer.serviceAccountName }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "ocp-mcp-server" }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: mcp-server
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.mcpServer.port }}
               protocol: TCP
-          command: ["./kubernetes-mcp-server"]
-          args:
-            - "--sse-port"
-            - "{{ .Values.mcpServer.port }}"
-            {{- if .Values.mcpServer.disableDestructive }}
-            - "--disable-destructive"
-            {{- end }}
-            {{- if .Values.mcpServer.logLevel }}
-            - "--log-level"
-            - "{{ .Values.mcpServer.logLevel }}"
-            {{- end }}
+          {{- if .Values.mcpServer.args }}
+          args: {{ toYaml .Values.mcpServer.args | nindent 12 }}
+          {{- end }}
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # Add command to debug environment variables and start the server
+          args: ["exec", "argocd-mcp@latest", "sse"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false

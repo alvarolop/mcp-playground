@@ -18,7 +18,16 @@ The Kubernetes MCP Server is a Model Context Protocol (MCP) server that allows A
 helm template mcp-server ./kubernetes-mcp-server-chart | oc apply -f -
 ```
 
+
+
 ## Configuration
+
+### Namespace Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `namespace.create` | Whether to create a new namespace | `true` |
+| `namespace.name` | Name of the namespace to create or use | `intelligent-cd` |
 
 ### MCP Server Settings
 
@@ -27,7 +36,9 @@ helm template mcp-server ./kubernetes-mcp-server-chart | oc apply -f -
 | `mcpServer.port` | Port for the MCP server to listen on | `8080` |
 | `mcpServer.disableDestructive` | Disable destructive operations | `true` |
 | `mcpServer.logLevel` | Log level (0-9) | `5` |
-| `mcpServer.serviceAccountName` | Service account name | `ocp-mcp` |
+| `mcpServer.args` | Arguments to pass to the command | `["--sse-port", "8080", "--disable-destructive", "--log-level", "5"]` |
+| `mcpServer.serviceAccount.create` | Whether to create a new service account | `true` |
+| `mcpServer.serviceAccount.name` | Service account name (only used if create=true) | `ocp-mcp-server` |
 
 ### Security Settings
 
@@ -45,6 +56,49 @@ helm template mcp-server ./kubernetes-mcp-server-chart | oc apply -f -
 | `image.tag` | Container image tag | `latest` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 
+### Environment Variables
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `env` | List of environment variables to add to the container | `[]` |
+
+Example environment variables configuration:
+```yaml
+env:
+  - name: DEBUG
+    value: "true"
+  - name: API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: my-secret
+        key: api-key
+```
+
+## Customizing Arguments
+
+Different MCP servers may require different command-line arguments. You can customize the arguments in the values:
+
+```yaml
+mcpServer:
+  # Custom arguments for your MCP server
+  args:
+    - "--config"
+    - "/etc/mcp/config.yaml"
+    - "--port"
+    - "9090"
+    - "--log-level"
+    - "7"
+```
+
+**Note**: The command is fixed to `./kubernetes-mcp-server`. If you need to use a different MCP server binary, you'll need to modify the container image accordingly.
+
+## Service Account Configuration
+
+The chart provides flexible service account configuration:
+
+1. **Default behavior** (`create: true`, no name specified): Creates a service account with the default name "ocp-mcp-server"
+2. **Custom existing service account** (`create: false`, name specified): Uses an existing service account with the specified name
+3. **Custom new service account** (`create: true`, name specified): Creates a new service account with the specified name
 
 ## Security Considerations
 

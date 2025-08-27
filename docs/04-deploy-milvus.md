@@ -80,7 +80,7 @@ Open your browser and navigate to **http://localhost:9091/webui/** to access the
 oc expose service milvus-milvus --port=9091 --name=milvus-dashboard -n intelligent-cd
 
 # Get the route URL
-oc get route milvus-dashboard -n intelligent-cd
+oc get route milvus-dashboard -n intelligent-cd --template='https://{{ .spec.host }}'
 ```
 
 **Note:** The route URL will be in the format: `https://milvus-dashboard-intelligent-cd.<cluster-domain>`

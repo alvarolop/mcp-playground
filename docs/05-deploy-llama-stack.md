@@ -39,8 +39,6 @@ helm template llama-stack-chart \
   --set inference.vllm.url="$OLS_PROVIDER_API_URL" \
   --set inference.vllm.tlsVerify="true" \
   --set inference.vllm.apiToken="$OLS_PROVIDER_API_TOKEN" \
-  --set inference.mcp.url="http://ocp-mcp-server.intelligent-cd.svc.cluster.local:8080" \
-  --set inference.mcp.tlsVerify="true" \
   | oc apply -f -
 
 ```
@@ -85,8 +83,8 @@ llama-stack-client toolgroups list
 llama-stack-client toolgroups get mcp::openshift
 
 # Get the model details
-llama-stack-client models get granite-3-3-8b-instruct 
-> INFO:httpx:HTTP Request: GET http://localhost:8321/v1/models/granite-3-3-8b-instruct "HTTP/1.1 200 OK"
+llama-stack-client models get llama-3-2-3b 
+> INFO:httpx:HTTP Request: GET http://localhost:8321/v1/models/llama-3-2-3b "HTTP/1.1 200 OK"
 ```
 
 Finally, you can use the inference chat-completion to test your Llama Stack:
@@ -127,7 +125,7 @@ permissions, not from the AI assistance I provide here.",
         )
     ],
     created=1756076910,
-    model='granite-3-3-8b-instruct',
+    model='llama-3-2-3b',
     object='chat.completion',
     service_tier=None,
     system_fingerprint=None,

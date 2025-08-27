@@ -23,7 +23,7 @@ First, build the MCP Server image and push it to your container registry. This s
 
 ```bash
 # Build and tag the image with version v0.0.49
-./dockerfile-kubernetes-mcp-server/build.sh v0.0.49 v0.0.49
+./dockerfile-kubernetes-mcp-server/build.sh v0.0.49 latest
 ```
 
 > **Note:** The build script will prompt you to push the image to the registry.
@@ -33,8 +33,9 @@ First, build the MCP Server image and push it to your container registry. This s
 Deploy the MCP server to your Kubernetes cluster using the Helm chart. This will create all necessary resources including the deployment, service, and RBAC configuration.
 
 ```bash
-helm template mcp-server-chart | oc apply -f -
+helm template mcp-server-chart --values mcp-server-chart/values-ocp.yaml | oc apply -f -
 ```
+
 
 After a few seconds, you should see the MCP server running:
 
@@ -48,9 +49,6 @@ oc get svc -n intelligent-cd
 
 
 
-
-
-
 ## 🛠️ Troubleshooting: Testing the MCP Server
 
 To verify the MCP server is running and test its functionality, follow these steps. This will help you confirm the deployment was successful and the server can respond to requests.
@@ -61,7 +59,7 @@ To verify the MCP server is running and test its functionality, follow these ste
 Forward the port 8080 of the MCP server to your local machine. This allows you to test the MCP server from your local environment without exposing it externally.
 
 ```bash
-oc port-forward svc/ocp-mcp 8080:8080 -n intelligent-cd
+oc port-forward svc/ocp-mcp-server 8080:8080 -n intelligent-cd
 ```
 
 ### Step 2: Listing the available tools
@@ -99,8 +97,3 @@ curl -sX POST http://localhost:8080/mcp \
   }' | jq -r '.result.content[0].text'
 ```
 
-
-
-## Next Steps
-
-Continue to 🌐 [Deploy Gradio Interface on OpenShift](03-deploy-gradio-openshift.md) section ➡️

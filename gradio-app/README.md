@@ -53,7 +53,7 @@ A simple web interface to access Llama Stack for LLM and Agent interactions with
 Set environment variables (optional):
 ```bash
 LLAMA_STACK_URL=http://localhost:8321  # Default
-DEFAULT_LLM_MODEL=granite-3-3-8b-instruct  # Default
+DEFAULT_LLM_MODEL=llama-3-2-3b  # Default
 ```
 
 ## Usage

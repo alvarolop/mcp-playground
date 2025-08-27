@@ -108,10 +108,7 @@ providers:
     config: {}
   - provider_id: model-context-protocol
     provider_type: remote::model-context-protocol
-    config:
-      url: ${env.MCP_URL:=http://mcp-service:8080}
-      api_token: ${env.MCP_API_TOKEN:=}
-      tls_verify: ${env.MCP_TLS_VERIFY:=true}
+    config: {}
 metadata_store:
   type: sqlite
   db_path: /opt/app-root/src/.llama/distributions/rh/registry.db
@@ -142,7 +139,11 @@ tool_groups:
 - toolgroup_id: mcp::openshift
   provider_id: model-context-protocol
   mcp_endpoint:
-    uri: "${env.MCP_URL:=http://mcp-service:8080}/sse"
+    uri: "${env.MCP_OCP_URL:=http://mcp-service:8080}/sse"
+- toolgroup_id: mcp::argocd
+  provider_id: model-context-protocol
+  mcp_endpoint:
+    uri: "${env.MCP_ARGOCD_URL:=http://mcp-service:8080}/sse"
 server:
   port: 8321
 external_providers_dir: /opt/app-root/src/.llama/providers.d

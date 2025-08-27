@@ -4,17 +4,21 @@
 
 name: llama-stack
 namespace:
-  create: true
+  create: false
   name: intelligent-cd # TODO: change from rhoai-llama-stack
 type: mcp # vllm, mcp
 inference:
-  model: "granite-3-3-8b-instruct"
+  model: "llama-3-2-3b"
   vllm:
     url: "https://URL:PORT/v1"
     tlsVerify: "true"
     apiToken: ""
-  mcp:
-    url: "http://ocp-mcp-server.intelligent-cd.svc.cluster.local:8080"
+mcp:
+  kubernetesMcpServer:
+    url: "http://ocp-mcp-server:8080"
+    tlsVerify: "true"
+  argocdMcp:
+    url: "http://argocd-mcp-server:3000"
     tlsVerify: "true"
 route:
   enabled: false

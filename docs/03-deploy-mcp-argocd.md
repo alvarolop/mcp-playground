@@ -24,10 +24,7 @@ Deploy the MCP server to your Kubernetes cluster using the Helm chart. This will
 First, get the ArgoCD base URL and API token:
 
 ```bash
-ARGOCD_BASE_URL=https://localhost:8443
-
 ARGOCD_BASE_URL=$(oc get route argocd-server -n openshift-gitops --template='https://{{ .spec.host }}')
-NODE_TLS_REJECT_UNAUTHORIZED=0
 
 ARGOCD_ADMIN_USERNAME=admin
 
@@ -45,7 +42,6 @@ echo "ARGOCD_BASE_URL: $ARGOCD_BASE_URL"
 echo "ARGOCD_ADMIN_USERNAME: $ARGOCD_ADMIN_USERNAME"
 echo "ARGOCD_ADMIN_PASSWORD: ${ARGOCD_ADMIN_PASSWORD:0:10}..."
 echo "ARGOCD_API_TOKEN: ${ARGOCD_API_TOKEN:0:10}..."
-echo "NODE_TLS_REJECT_UNAUTHORIZED: $NODE_TLS_REJECT_UNAUTHORIZED"
 
 # You can test the MCP server locally with the following command:
 npm exec argocd-mcp@latest sse

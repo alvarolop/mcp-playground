@@ -29,13 +29,16 @@ Learn how to deploy the MCP server on Kubernetes/OpenShift for production use wi
 ### 3. 🔄 [Deploy MCP Server on ArgoCD](docs/03-deploy-mcp-argocd.md)
 Set up the Akuity's ArgoCD MCP server for GitOps-based MCP deployments.
 
-### 4. 🗄️ [Deploy Milvus Vector Database](docs/04-deploy-milvus.md)
+### 4. 🔧 [Deploy MCP Server on ServiceNow](docs/04-deploy-mcp-servicenow.md)
+Set up the ServiceNow MCP server for integration with ServiceNow instances.
+
+### 5. 🗄️ [Deploy Milvus Vector Database](docs/05-deploy-milvus.md)
 Set up Milvus for storing and retrieving vector embeddings to enable RAG capabilities.
 
-### 5. 🤖 [Deploy LLaMA Stack with MCP Integration](docs/05-deploy-llama-stack.md)
+### 6. 🤖 [Deploy LLaMA Stack with MCP Integration](docs/06-deploy-llama-stack.md)
 Integrate everything together using the LLaMA Stack Operator to deploy and manage LLMs.
 
-### 6. 🌐 [Deploy Gradio Interface on OpenShift](docs/06-deploy-gradio-openshift.md)
+### 7. 🌐 [Deploy Gradio Interface on OpenShift](docs/07-deploy-gradio-openshift.md)
 Deploy your Gradio chatbot interface to OpenShift to make it accessible to your team.
 
 ## 🛠️ Prerequisites

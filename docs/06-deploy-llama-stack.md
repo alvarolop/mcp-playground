@@ -39,6 +39,7 @@ helm template llama-stack-chart \
   --set inference.vllm.url="$OLS_PROVIDER_API_URL" \
   --set inference.vllm.tlsVerify="true" \
   --set inference.vllm.apiToken="$OLS_PROVIDER_API_TOKEN" \
+  --set namespace.name=alvaro \
   | oc apply -f -
 
 ```

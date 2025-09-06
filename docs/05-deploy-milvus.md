@@ -86,7 +86,7 @@ oc get route milvus-dashboard -n intelligent-cd --template='https://{{ .spec.hos
 **Note:** The route URL will be in the format: `https://milvus-dashboard-intelligent-cd.<cluster-domain>`
 
 
-Continue to 🤖 [Deploy LLaMA Stack with MCP Integration](05-deploy-llama-stack.md) section ➡️
+Continue to 🤖 [Deploy LLaMA Stack with MCP Integration](06-deploy-llama-stack.md) section ➡️
 
 ## Important Resources
 
